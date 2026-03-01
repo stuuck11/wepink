@@ -253,6 +253,15 @@ async function startServer() {
       });
       console.log("Carousel synced from Firebase.");
     }
+
+    // Sync Categories
+    const querySnapshotCats = await getDocs(collection(firestore, "categories"));
+    const updateCategory = db.prepare("UPDATE categories SET banner_url = ?, icon_url = ? WHERE id = ? OR slug = ?");
+    querySnapshotCats.forEach((doc) => {
+      const item = doc.data();
+      updateCategory.run(item.banner_url || "", item.icon_url || "", doc.id, item.slug);
+    });
+    console.log("Categories synced from Firebase.");
   } catch (e) {
     console.error("Error during Firebase sync:", e);
   }
@@ -391,7 +400,7 @@ async function startServer() {
     res.json(settingsObj);
   });
 
-  app.post("/api/settings", authenticate, (req, res) => {
+  app.post("/api/settings", authenticate, async (req, res) => {
     const updates = req.body;
     const updateStmt = db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)");
     const transaction = db.transaction((data) => {
@@ -400,6 +409,17 @@ async function startServer() {
       }
     });
     transaction(updates);
+
+    // Sync to Firebase
+    try {
+      const allSettings = db.prepare("SELECT * FROM settings").all() as { key: string, value: string }[];
+      const settingsObj = allSettings.reduce((acc: any, curr: any) => {
+        acc[curr.key] = curr.value;
+        return acc;
+      }, {});
+      await setDoc(doc(firestore, "site_config", "settings"), settingsObj);
+    } catch (e) { console.error("Firebase settings error:", e); }
+
     res.json({ success: true });
   });
 
@@ -457,10 +477,24 @@ async function startServer() {
     res.json(items);
   });
 
-  app.put("/api/admin/categories/:id", authenticate, (req, res) => {
+  app.put("/api/admin/categories/:id", authenticate, async (req, res) => {
     const { id } = req.params;
     const { banner_url } = req.body;
     db.prepare("UPDATE categories SET banner_url = ? WHERE id = ?").run(banner_url, id);
+    
+    // Sync to Firebase
+    try {
+      const cat = db.prepare("SELECT * FROM categories WHERE id = ?").get(id) as any;
+      if (cat) {
+        await setDoc(doc(firestore, "categories", id.toString()), {
+          name: cat.name,
+          slug: cat.slug,
+          banner_url: cat.banner_url || "",
+          icon_url: cat.icon_url || ""
+        });
+      }
+    } catch (e) { console.error("Firebase category error:", e); }
+
     res.json({ success: true });
   });
 

@@ -70,12 +70,14 @@ export default function Header() {
           </div>
 
           <Link to="/" className="absolute left-1/2 -translate-x-1/2">
-            <img 
-              src={settings.logo_url} 
-              alt="Logo" 
-              className="h-6 w-auto sm:h-8" 
-              referrerPolicy="no-referrer"
-            />
+            {settings.logo_url && (
+              <img 
+                src={settings.logo_url} 
+                alt="" 
+                className="h-6 w-auto sm:h-8" 
+                referrerPolicy="no-referrer"
+              />
+            )}
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-4">

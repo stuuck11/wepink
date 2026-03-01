@@ -89,7 +89,11 @@ export default function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="flex items-center justify-between bg-[#FF0080] p-4">
-            <img src={settings.logo_url} alt="Logo" className="h-8 w-auto brightness-0 invert" />
+            {settings.logo_url ? (
+              <img src={settings.logo_url} alt="" className="h-8 w-auto brightness-0 invert" />
+            ) : (
+              <div className="h-8" />
+            )}
             <button onClick={onClose} className="p-2 text-white hover:opacity-70">
               <X size={24} />
             </button>
