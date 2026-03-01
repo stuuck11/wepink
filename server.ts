@@ -12,7 +12,22 @@ import fs from "fs";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
-dotenv.config();
+// Robust dotenv loading
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPaths = [
+  path.join(process.cwd(), ".env"),
+  path.join(__dirname, ".env"),
+  path.join(__dirname, "..", ".env"),
+  "/.env"
+];
+
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    break;
+  }
+}
 
 const firebaseConfig = {
   apiKey: "AIzaSyDt3moQgGgODXmh4Oc70QotVNWnWZBVvyQ",
@@ -26,9 +41,6 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const firestore = getFirestore(firebaseApp);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 function logError(err: any) {
   const timestamp = new Date().toISOString();
