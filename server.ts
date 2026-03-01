@@ -665,7 +665,7 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Math.round(Number(total) * 100),
+          amount: Number(total),
           description: `Compra Wepink`,
           clientIp: ip || '127.0.0.1',
           client: {
@@ -691,9 +691,10 @@ async function startServer() {
               country: 'BR'
             }
           },
-          items: items.map((item: any) => ({
+          items: items.map((item: any, idx: number) => ({
+            id: String(idx + 1),
             title: item.name,
-            unit_price: Math.round(Number(item.price) * 100),
+            unit_price: Number(item.price),
             quantity: item.quantity
           })),
           metadata: {
@@ -718,11 +719,13 @@ async function startServer() {
           payload.card = {
             number: (card.number || "").replace(/\s/g, ''),
             holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
-            holder_document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            holder_document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             exp_month: expMonth,
             exp_year: expYear,
             cvv: card.cvv || "000",
-            installments: 1
+            installments: 1,
+            brand: 'visa'
           };
         }
 
