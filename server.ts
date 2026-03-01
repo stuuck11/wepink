@@ -373,27 +373,70 @@ async function startServer() {
   });
 
   // SigiloPay Webhook Handler
-  app.post("/api/webhooks/sigilopay", (req, res) => {
-    const data = req.body;
-    console.log("SigiloPay Webhook received:", data);
-    
-    // SigiloPay sends status and identifier (our transactionId)
-    const status = data.status;
-    const identifier = data.identifier;
+  app.post("/api/webhooks/sigilopay", async (req, res) => {
+    try {
+      const payload = req.body;
+      console.log("SigiloPay Webhook received:", JSON.stringify(payload, null, 2));
 
-    if (status === "paid" || status === "completed") {
-      try {
-        // Update order status in SQLite
-        db.prepare("UPDATE orders SET status = 'approved' WHERE id = ? OR pix_code = ?")
-          .run(identifier, data.pix_code || "");
-        
-        console.log(`Order ${identifier} marked as approved via webhook.`);
-      } catch (e) {
-        console.error("Error updating order via webhook:", e);
+      const transaction = payload.transaction || {};
+      const metadata = payload.trackProps || payload.metadata || {};
+      const client = payload.client || {};
+      
+      const status = (transaction.status || payload.status || '').toString().toLowerCase();
+      const id = transaction.id || payload.id;
+      const amount = transaction.amount || payload.amount;
+      const identifier = transaction.identifier || payload.identifier;
+
+      if (status === 'paid' || status === 'completed' || payload.event === 'TRANSACTION_PAID') {
+        const pixelId = metadata.pixelId;
+        const accessToken = metadata.accessToken;
+
+        // 1. Update SQLite
+        try {
+          db.prepare("UPDATE orders SET status = 'approved' WHERE id = ? OR pix_code = ?")
+            .run(identifier || id, payload.pix_code || "");
+          console.log(`Order ${identifier || id} marked as approved via webhook.`);
+        } catch (e) {
+          console.error("Error updating order via webhook:", e);
+        }
+
+        // 2. Meta Pixel CAPI: Purchase
+        if (pixelId && accessToken) {
+          const rawIp = metadata.ip || '';
+          const cleanIp = Array.isArray(rawIp) ? rawIp[0] : rawIp.split(',')[0].trim();
+
+          const event = {
+            event_name: 'Purchase',
+            event_id: id || metadata.transactionId || `pay_${Date.now()}`,
+            event_time: Math.floor(Date.now() / 1000),
+            action_source: 'website',
+            event_source_url: metadata.originUrl || '',
+            user_data: { 
+              em: metadata.email ? [hash(metadata.email)] : (client.email ? [hash(client.email)] : undefined),
+              client_ip_address: cleanIp,
+              client_user_agent: metadata.userAgent,
+              external_id: [hash(metadata.transactionId)],
+            },
+            custom_data: { 
+              currency: 'BRL', 
+              value: Number(amount), 
+              content_type: 'product'
+            }
+          };
+
+          fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [event] })
+          }).catch(() => {});
+        }
       }
+
+      return res.status(200).json({ received: true });
+    } catch (err: any) {
+      console.error("SigiloPay Webhook Error:", err);
+      return res.status(200).json({ received: true, error: err.message });
     }
-    
-    res.json({ success: true });
   });
 
   // SigiloPay Integration & Meta Ads Pixel CAPI
@@ -411,13 +454,26 @@ async function startServer() {
     const pixelId = settings.fb_pixel_id;
     const accessToken = settings.fb_access_token;
 
-    // CAPI: InitiateCheckout
+    // CAPI: InitiateCheckout & AddPaymentInfo
     if (pixelId && accessToken) {
       const hashedEmail = email ? hash(email) : undefined;
       const events = [
         {
           event_name: 'InitiateCheckout',
           event_id: `init-${Date.now()}`,
+          event_time: Math.floor(Date.now() / 1000),
+          action_source: 'website',
+          event_source_url: originUrl,
+          user_data: { 
+            client_ip_address: ip,
+            client_user_agent: userAgent, 
+            em: hashedEmail ? [hashedEmail] : undefined,
+          },
+          custom_data: { currency: 'BRL', value: Number(total) }
+        },
+        {
+          event_name: 'AddPaymentInfo',
+          event_id: `add-${Date.now()}`,
           event_time: Math.floor(Date.now() / 1000),
           action_source: 'website',
           event_source_url: originUrl,
@@ -441,33 +497,59 @@ async function startServer() {
     const appUrl = (process.env.APP_URL || '').trim().replace(/\/$/, '');
     const transactionId = `don_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-    if (payment_method === "pix") {
-      // Real SigiloPay PIX integration if keys exist, otherwise mock
-      if (publicKey && secretKey) {
-        try {
-          const response = await fetch('https://app.sigilopay.com.br/api/v1/gateway/pix/receive', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'x-public-key': publicKey,
-              'x-secret-key': secretKey
-            },
-            body: JSON.stringify({
-              identifier: transactionId,
-              amount: Number(total),
-              description: `Compra Wepink`,
-              client: {
-                name: customerData.name || 'Cliente',
-                email: email || 'cliente@exemplo.com',
-                phone: '11999999999',
-                document: customerData.cpf?.replace(/\D/g, '') || '12345678909'
-              },
-              callbackurl: `${appUrl}/api/webhooks/sigilopay`
-            })
-          });
+    if (publicKey && secretKey) {
+      try {
+        const endpoint = payment_method === "pix" 
+          ? 'https://app.sigilopay.com.br/api/v1/gateway/pix/receive'
+          : 'https://app.sigilopay.com.br/api/v1/gateway/card/receive';
 
-          if (response.ok) {
-            const data = await response.json();
+        const payload: any = {
+          identifier: transactionId,
+          amount: Number(total),
+          description: `Compra Wepink`,
+          client: {
+            name: customerData.name || 'Cliente',
+            email: email || 'cliente@exemplo.com',
+            phone: '11999999999',
+            document: customerData.cpf?.replace(/\D/g, '') || '12345678909'
+          },
+          metadata: {
+            transactionId: transactionId,
+            pixelId: pixelId,
+            accessToken: accessToken,
+            originUrl: originUrl,
+            email: email,
+            userAgent: userAgent,
+            ip: ip
+          },
+          callbackurl: `${appUrl}/api/webhooks/sigilopay`
+        };
+
+        if (payment_method === "card" && card) {
+          payload.card = {
+            number: card.number.replace(/\s/g, ""),
+            holder_name: card.name,
+            exp_month: card.expiry.split("/")[0],
+            exp_year: "20" + card.expiry.split("/")[1],
+            cvv: card.cvv,
+            installments: 1
+          };
+        }
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-public-key': publicKey,
+            'x-secret-key': secretKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          if (payment_method === "pix") {
             const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, pix_code, pix_url, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
               .run(email, JSON.stringify(customerData), JSON.stringify(items), total, data.pix?.code || data.pix_code, data.pix?.base64 || data.pix_qr_code, "pending");
 
@@ -477,59 +559,37 @@ async function startServer() {
               pixUrl: data.pix?.base64 || data.pix_qr_code,
               status: "pending"
             });
-          }
-        } catch (e) {
-          console.error("SigiloPay PIX Error:", e);
-        }
-      }
+          } else {
+            const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status) VALUES (?, ?, ?, ?, ?)")
+              .run(email, JSON.stringify(customerData), JSON.stringify(items), total, data.status === "paid" ? "approved" : "pending");
 
-      // Mock fallback
+            return res.json({ 
+              orderId: info.lastInsertRowid,
+              status: data.status === "paid" ? "approved" : "pending",
+              transactionId: data.transactionId || data.id
+            });
+          }
+        } else {
+          console.error("SigiloPay API Error:", data);
+          return res.status(400).json({ error: data.message || "Erro no processamento do pagamento." });
+        }
+      } catch (e) {
+        console.error("SigiloPay Integration Error:", e);
+        return res.status(500).json({ error: "Erro interno ao processar pagamento." });
+      }
+    }
+
+    // Mock fallback if keys are missing
+    if (payment_method === "pix") {
       const pixCode = "00020126360014BR.GOV.BCB.PIX0114+5511999999999520400005303986540510.005802BR5913Wepink Store6009SAO PAULO62070503***6304E2B4";
       const pixUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(pixCode);
-      
-      const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, pix_code, pix_url) VALUES (?, ?, ?, ?, ?, ?)")
-        .run(email, JSON.stringify(customerData), JSON.stringify(items), total, pixCode, pixUrl);
-
-      return res.json({ 
-        orderId: info.lastInsertRowid,
-        pixCode,
-        pixUrl,
-        status: "pending"
-      });
+      const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, pix_code, pix_url, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .run(email, JSON.stringify(customerData), JSON.stringify(items), total, pixCode, pixUrl, "pending");
+      return res.json({ orderId: info.lastInsertRowid, pixCode, pixUrl, status: "pending" });
     } else {
-      // Card Payment Simulation (or integration if available)
       const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status) VALUES (?, ?, ?, ?, ?)")
         .run(email, JSON.stringify(customerData), JSON.stringify(items), total, "approved");
-
-      // CAPI: Purchase for Card (assuming immediate approval for test-model)
-      if (pixelId && accessToken) {
-        const hashedEmail = email ? hash(email) : undefined;
-        const event = {
-          event_name: 'Purchase',
-          event_id: `pur-${info.lastInsertRowid}`,
-          event_time: Math.floor(Date.now() / 1000),
-          action_source: 'website',
-          event_source_url: originUrl,
-          user_data: { 
-            client_ip_address: ip,
-            client_user_agent: userAgent, 
-            em: hashedEmail ? [hashedEmail] : undefined,
-          },
-          custom_data: { currency: 'BRL', value: Number(total) }
-        };
-        fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: [event] })
-        }).catch(() => {});
-      }
-
-      return res.json({
-        success: true,
-        orderId: info.lastInsertRowid,
-        transaction_id: "sig_" + Math.random().toString(36).substring(7),
-        status: "approved"
-      });
+      return res.json({ orderId: info.lastInsertRowid, status: "approved" });
     }
   });
 
