@@ -52,11 +52,14 @@ export default function Carousel() {
           transition={{ duration: 0.8 }}
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.2}
           onDragEnd={(_, info) => {
-            if (info.offset.x > 50) prev();
-            else if (info.offset.x < -50) next();
+            const swipeThreshold = 50;
+            if (info.offset.x > swipeThreshold) prev();
+            else if (info.offset.x < -swipeThreshold) next();
           }}
-          className="h-full w-full object-cover cursor-grab active:cursor-grabbing"
+          className="h-full w-full object-cover cursor-grab active:cursor-grabbing touch-none"
+          draggable="false"
           referrerPolicy="no-referrer"
         />
       </AnimatePresence>
@@ -78,7 +81,7 @@ export default function Carousel() {
             key={i}
             onClick={() => setCurrentIndex(i)}
             className={`h-2 w-2 rounded-full transition-all ${
-              i === currentIndex ? "w-6 bg-[#FF0080]" : "bg-white/50"
+              i === currentIndex ? "bg-[#FF0080]" : "bg-white/50"
             }`}
           />
         ))}
