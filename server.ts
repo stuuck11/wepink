@@ -8,8 +8,23 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, doc, getDoc } from "firebase/firestore";
 
 dotenv.config();
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDt3moQgGgODXmh4Oc70QotVNWnWZBVvyQ",
+  authDomain: "wepink-4e089.firebaseapp.com",
+  projectId: "wepink-4e089",
+  storageBucket: "wepink-4e089.firebasestorage.app",
+  messagingSenderId: "852881534937",
+  appId: "1:852881534937:web:a0ee39c3bf5f156602b3c8",
+  measurementId: "G-48WJTDYBNV"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const firestore = getFirestore(firebaseApp);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -148,6 +163,49 @@ async function startServer() {
   try { db.prepare("ALTER TABLE products ADD COLUMN image_url_3 TEXT").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE products ADD COLUMN image_url_4 TEXT").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE products ADD COLUMN image_url_5 TEXT").run(); } catch(e) {}
+
+  // Sync from Firebase on startup
+  try {
+    console.log("Syncing data from Firebase...");
+    
+    // Sync Settings
+    const settingsDoc = await getDoc(doc(firestore, "site_config", "settings"));
+    if (settingsDoc.exists()) {
+      const data = settingsDoc.data();
+      const updateStmt = db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)");
+      for (const [key, value] of Object.entries(data)) {
+        updateStmt.run(key, String(value));
+      }
+      console.log("Settings synced from Firebase.");
+    }
+
+    // Sync Products if SQLite is empty
+    const productCount = db.prepare("SELECT COUNT(*) as count FROM products").get() as { count: number };
+    if (productCount.count === 0) {
+      const querySnapshot = await getDocs(collection(firestore, "products_log"));
+      const insertProduct = db.prepare(`
+        INSERT INTO products (
+          name, description, price, old_price, image_url, 
+          image_url_2, image_url_3, image_url_4, image_url_5,
+          category_id, is_queridinho, is_destaque, is_mais_vendido, is_top_bar
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      querySnapshot.forEach((doc) => {
+        const p = doc.data();
+        if (p.action === "create" || !p.action) {
+          insertProduct.run(
+            p.name, p.description, p.price, p.old_price || 0, p.image_url,
+            p.image_url_2 || "", p.image_url_3 || "", p.image_url_4 || "", p.image_url_5 || "",
+            p.category_id, p.is_queridinho ? 1 : 0, p.is_destaque ? 1 : 0, p.is_mais_vendido ? 1 : 0, p.is_top_bar ? 1 : 0
+          );
+        }
+      });
+      console.log("Products synced from Firebase.");
+    }
+  } catch (e) {
+    console.error("Error during Firebase sync:", e);
+  }
 
   // Auth Middleware
   const authenticate = (req: any, res: any, next: any) => {
