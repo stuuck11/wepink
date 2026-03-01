@@ -665,17 +665,27 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Number(Number(total).toFixed(2)),
+          amount: Number(total),
           description: `Compra Wepink`,
+          clientIp: ip || '127.0.0.1',
           client: {
             name: customerData.name || 'Cliente Wepink',
             email: email,
             phone: (customerData.phone || '11999999999').replace(/\D/g, ''),
-            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, '')
+            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            address: {
+              street: customerData.street || 'Rua não informada',
+              number: customerData.number || 'SN',
+              complement: customerData.complement || '',
+              district: customerData.district || 'Bairro não informado',
+              city: customerData.city || 'Cidade não informada',
+              state: (customerData.state || 'SP').substring(0, 2).toUpperCase(),
+              zip_code: (customerData.cep || customerData.zipCode || '00000000').replace(/\D/g, '')
+            }
           },
           items: items.map((item: any) => ({
             title: item.name,
-            unit_price: Number(Number(item.price).toFixed(2)),
+            unit_price: Number(item.price),
             quantity: item.quantity
           })),
           metadata: {
@@ -692,14 +702,18 @@ async function startServer() {
         };
 
         if (payment_method === "card" && card) {
-          const [expMonth, expYear] = card.expiry.split('/');
+          const expiryParts = (card.expiry || "").split('/');
+          const expMonth = expiryParts[0] || "";
+          const expYearRaw = expiryParts[1] || "";
+          const expYear = expYearRaw.length === 2 ? "20" + expYearRaw : expYearRaw;
+
           payload.card = {
-            number: card.number.replace(/\s/g, ''),
-            holder_name: card.name,
+            number: (card.number || "").replace(/\s/g, ''),
+            holder_name: card.name || customerData.name || 'Cliente',
             holder_document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             exp_month: expMonth,
-            exp_year: expYear.length === 2 ? "20" + expYear : expYear,
-            cvv: card.cvv,
+            exp_year: expYear,
+            cvv: card.cvv || "",
             installments: 1
           };
         }

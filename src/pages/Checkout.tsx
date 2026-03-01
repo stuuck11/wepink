@@ -27,7 +27,10 @@ export default function Checkout() {
     cep: "",
     street: "",
     number: "",
-    complement: ""
+    complement: "",
+    district: "",
+    city: "",
+    state: ""
   });
   const [pixData, setPixData] = useState<{ code: string; url: string } | null>(null);
   const [shippingOption, setShippingOption] = useState<{ id: string; name: string; price: number; time: string } | null>(null);
@@ -51,6 +54,7 @@ export default function Checkout() {
   };
 
   const shippingOptions = [
+    { id: "teste", name: "Frete Teste", price: 4.00, time: "até 2 dias úteis" },
     { id: "total-express", name: "Total Express", price: 16.90, time: "até 7 dias úteis" },
     { id: "sedex", name: "Sedex", price: 11.90, time: "até 12 dias úteis" }
   ];
@@ -136,6 +140,9 @@ export default function Checkout() {
           setFormData(prev => ({
             ...prev,
             street: data.logradouro,
+            district: data.bairro,
+            city: data.localidade,
+            state: data.uf,
             complement: prev.complement || data.complemento
           }));
         }
@@ -515,6 +522,26 @@ export default function Checkout() {
                               type="text" 
                               value={formData.street}
                               onChange={e => setFormData({...formData, street: e.target.value})}
+                              className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                              required
+                            />
+                          </div>
+                          <div className="col-span-2 sm:col-span-1">
+                            <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bairro</label>
+                            <input 
+                              type="text" 
+                              value={formData.district}
+                              onChange={e => setFormData({...formData, district: e.target.value})}
+                              className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                              required
+                            />
+                          </div>
+                          <div className="col-span-2 sm:col-span-1">
+                            <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cidade</label>
+                            <input 
+                              type="text" 
+                              value={formData.city}
+                              onChange={e => setFormData({...formData, city: e.target.value})}
                               className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
                               required
                             />
