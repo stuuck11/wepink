@@ -710,24 +710,7 @@ async function startServer() {
           callbackurl: `${appUrl}/api/webhooks/sigilopay`
         };
 
-        if (payment_method === "card" && card) {
-          const expiryParts = (card.expiry || "").split('/');
-          const expMonth = (expiryParts[0] || "").padStart(2, '0');
-          const expYearRaw = expiryParts[1] || "";
-          const expYear = expYearRaw.length === 2 ? "20" + expYearRaw : expYearRaw;
-
-          payload.card = {
-            number: (card.number || "").replace(/\s/g, ''),
-            holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
-            name: (card.name || customerData.name || 'Cliente Wepink').trim(),
-            holder_document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            exp_month: parseInt(expMonth),
-            exp_year: parseInt(expYear),
-            cvv: String(card.cvv || "000"),
-            installments: 1
-          };
-        }
+        // Removed card payment logic as requested
 
         console.log(`[SigiloPay] Enviando payload para ${endpoint}:`, JSON.stringify(payload, null, 2));
 
