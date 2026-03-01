@@ -230,7 +230,10 @@ export default function Checkout() {
         })
       });
 
-      if (!sigiloResponse.ok) throw new Error("Erro ao processar pagamento.");
+      if (!sigiloResponse.ok) {
+        const errorData = await sigiloResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Erro ao processar pagamento.");
+      }
 
       const data = await sigiloResponse.json();
 
@@ -241,8 +244,17 @@ export default function Checkout() {
         // For card, we assume success for this test-model
         setStep("confirmation");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Checkout error:", err);
+      const errorMessage = err.message || String(err);
+      
+      // Send error to server log
+      fetch("/api/log-error", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: `Client-side Checkout Error: ${errorMessage}` })
+      }).catch(() => {});
+
       setError("Erro ao processar seu pedido. Tente novamente.");
     } finally {
       setLoading(false);

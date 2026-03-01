@@ -32,9 +32,22 @@ const __dirname = path.dirname(__filename);
 
 function logError(err: any) {
   const timestamp = new Date().toISOString();
-  const message = err instanceof Error ? err.stack : JSON.stringify(err);
+  let message = "";
+  if (err instanceof Error) {
+    message = err.stack || err.message;
+  } else if (typeof err === "object") {
+    message = JSON.stringify(err);
+  } else {
+    message = String(err);
+  }
   const logEntry = `[${timestamp}] ERROR: ${message}\n`;
-  fs.appendFileSync(path.join(__dirname, "stderr.log"), logEntry);
+  console.error("LOGGING ERROR:", logEntry);
+  try {
+    const logPath = path.join(process.cwd(), "stderr.log");
+    fs.appendFileSync(logPath, logEntry);
+  } catch (fsErr) {
+    console.error("Failed to write to stderr.log:", fsErr);
+  }
 }
 
 function hash(val: string | undefined): string | undefined {
@@ -266,6 +279,11 @@ async function startServer() {
   app.post("/api/logout", (req, res) => {
     res.clearCookie("token");
     res.json({ success: true });
+  });
+
+  app.post("/api/log-error", (req, res) => {
+    logError(req.body.error);
+    res.json({ ok: true });
   });
 
   app.get("/api/admin/check", authenticate, (req, res) => {
@@ -707,7 +725,9 @@ async function startServer() {
     }
 
     // If keys are missing, return error
-    return res.status(400).json({ error: "Configuração de pagamento (SigiloPay) ausente no servidor." });
+    const missingKeysMsg = "Configuração de pagamento (SigiloPay) ausente no servidor.";
+    logError(missingKeysMsg);
+    return res.status(400).json({ error: missingKeysMsg });
   });
 
   // Admin Product Management
