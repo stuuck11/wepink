@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import { SettingsProvider } from "./context/SettingsContext";
 import Home from "./pages/Home";
@@ -23,7 +23,8 @@ export default function App() {
             <Header />
             <main>
               <Routes>
-                <Route path="/" element={<Home />} />
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<Home />} />
                 <Route path="/categoria/:slug" element={<Category />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/admin" element={<Admin />} />

@@ -25,12 +25,14 @@ export default function Footer() {
     <footer className="bg-[#FF0080] px-6 py-12 text-white sm:px-12 sm:py-20">
       <div className="mx-auto max-w-7xl">
         <div className="mb-12">
-          <img 
-            src={settings.logo_url} 
-            alt="Logo" 
-            className="mb-8 h-10 w-auto brightness-0 invert" 
-            referrerPolicy="no-referrer"
-          />
+          <Link to="/home">
+            <img 
+              src={settings.logo_url} 
+              alt="Logo" 
+              className="mb-8 h-10 w-auto brightness-0 invert" 
+              referrerPolicy="no-referrer"
+            />
+          </Link>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {footerLinks.map((link, i) => (
               <Link 

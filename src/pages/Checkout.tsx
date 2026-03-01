@@ -39,6 +39,10 @@ export default function Checkout() {
   const [error, setError] = useState("");
   const [paymentMethod] = useState<"pix">("pix");
   const [copied, setCopied] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState("");
 
   const handleCopy = () => {
     navigator.clipboard.writeText(pixData?.code || "");
@@ -51,7 +55,8 @@ export default function Checkout() {
     { id: "sedex", name: "Sedex", price: 11.90, time: "até 12 dias úteis" }
   ];
 
-  const finalTotal = total + (shippingOption ? shippingOption.price : 0);
+  const couponValue = total * (couponDiscount / 100);
+  const finalTotal = total - couponValue + (shippingOption ? shippingOption.price : 0);
 
   useEffect(() => {
     fetch("/api/user/me")
@@ -160,6 +165,8 @@ export default function Checkout() {
         })),
         subtotal,
         discounts,
+        coupon_code: couponDiscount > 0 ? couponCode : null,
+        coupon_discount: couponDiscount,
         shipping: shippingOption?.price || 0,
         total: finalTotal,
         paymentMethod,
@@ -209,6 +216,8 @@ export default function Checkout() {
             quantity: item.quantity
           })),
           total: finalTotal,
+          coupon_code: couponDiscount > 0 ? couponCode : null,
+          coupon_discount: couponDiscount,
           payment_method: paymentMethod,
           originUrl: window.location.href
         })
@@ -241,6 +250,31 @@ export default function Checkout() {
       setError("Erro ao processar seu pedido. Tente novamente.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setApplyingCoupon(true);
+    setCouponError("");
+    try {
+      const res = await fetch("/api/validate-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCouponDiscount(data.discount);
+        setCouponError("");
+      } else {
+        setCouponError(data.error || "Cupom inválido.");
+        setCouponDiscount(0);
+      }
+    } catch (err) {
+      setCouponError("Erro ao validar cupom.");
+    } finally {
+      setApplyingCoupon(false);
     }
   };
 
@@ -306,6 +340,28 @@ export default function Checkout() {
             </div>
 
             <div className="rounded-2xl bg-gray-50 p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Cupom de Desconto</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={couponCode}
+                    onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="DIGITE SEU CUPOM"
+                    className="flex-1 rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none uppercase"
+                  />
+                  <button 
+                    onClick={handleApplyCoupon}
+                    disabled={applyingCoupon || !couponCode.trim()}
+                    className="rounded-lg bg-gray-900 px-6 py-3 text-xs font-bold text-white uppercase tracking-widest hover:bg-black disabled:opacity-50"
+                  >
+                    {applyingCoupon ? "..." : "Aplicar"}
+                  </button>
+                </div>
+                {couponError && <p className="text-[10px] font-bold text-red-500 uppercase">{couponError}</p>}
+                {couponDiscount > 0 && <p className="text-[10px] font-bold text-green-600 uppercase">Cupom aplicado: {couponDiscount}% de desconto!</p>}
+              </div>
+
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Subtotal</span>
                 <span className="font-bold">R$ {subtotal.toFixed(2).replace(".", ",")}</span>
@@ -314,9 +370,15 @@ export default function Checkout() {
                 <span className="text-gray-500">Descontos</span>
                 <span className="font-bold text-red-500">-R$ {discounts.toFixed(2).replace(".", ",")}</span>
               </div>
+              {couponDiscount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Cupom ({couponDiscount}%)</span>
+                  <span className="font-bold text-green-600">-R$ {couponValue.toFixed(2).replace(".", ",")}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t pt-4 text-xl font-black text-[#FF0080]">
                 <span>Total</span>
-                <span>R$ {total.toFixed(2).replace(".", ",")}</span>
+                <span>R$ {finalTotal.toFixed(2).replace(".", ",")}</span>
               </div>
               <button 
                 onClick={handleNext}

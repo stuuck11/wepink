@@ -154,6 +154,14 @@ try {
   db.exec("ALTER TABLE orders ADD COLUMN card_data TEXT");
 } catch (e) {}
 
+try {
+  db.exec("ALTER TABLE orders ADD COLUMN coupon_code TEXT");
+} catch (e) {}
+
+try {
+  db.exec("ALTER TABLE orders ADD COLUMN coupon_discount REAL DEFAULT 0");
+} catch (e) {}
+
 // Seed default settings if empty
 const settingsCount = db.prepare("SELECT COUNT(*) as count FROM settings").get() as { count: number };
 if (settingsCount.count === 0) {
@@ -165,11 +173,19 @@ if (settingsCount.count === 0) {
   insertSetting.run("fb_access_token", "");
   insertSetting.run("whatsapp_active", "1");
   insertSetting.run("whatsapp_number", "5511999999999");
+  insertSetting.run("coupon_code", "");
+  insertSetting.run("coupon_discount", "0");
 } else {
   // Ensure logo_url exists even if table wasn't empty
   const hasLogo = db.prepare("SELECT value FROM settings WHERE key = 'logo_url'").get();
   if (!hasLogo) {
     db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run("logo_url", "https://wepink.vtexassets.com/assets/vtex/assets-builder/wepink.store-theme/6.0.3/svg/logo-primary___ef05671065928b5b01f33e72323ba3b8.svg");
+  }
+  // Ensure coupon settings exist
+  const hasCoupon = db.prepare("SELECT value FROM settings WHERE key = 'coupon_code'").get();
+  if (!hasCoupon) {
+    db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run("coupon_code", "");
+    db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run("coupon_discount", "0");
   }
 }
 
@@ -398,6 +414,21 @@ async function startServer() {
       return acc;
     }, {});
     res.json(settingsObj);
+  });
+
+  app.post("/api/validate-coupon", (req, res) => {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: "Código do cupom é obrigatório." });
+
+    const settingsRows = db.prepare("SELECT key, value FROM settings WHERE key IN ('coupon_code', 'coupon_discount')").all() as { key: string, value: string }[];
+    const settings: any = {};
+    settingsRows.forEach(row => settings[row.key] = row.value);
+
+    if (settings.coupon_code && settings.coupon_code.trim().toUpperCase() === code.trim().toUpperCase()) {
+      return res.json({ success: true, discount: parseFloat(settings.coupon_discount || "0") });
+    }
+
+    res.status(400).json({ error: "Cupom inválido ou expirado." });
   });
 
   app.post("/api/settings", authenticate, async (req, res) => {
@@ -773,7 +804,7 @@ async function startServer() {
         }
 
         // Save Order to SQLite
-        const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status, pix_code, pix_url, card_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status, pix_code, pix_url, card_data, coupon_code, coupon_discount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
           .run(
             email, 
             JSON.stringify(customerData), 
@@ -782,7 +813,9 @@ async function startServer() {
             data.status === "paid" ? "approved" : "pending",
             data.pix?.code || data.pix_code || "",
             data.pix?.base64 || data.pix_qr_code || "",
-            payment_method === "card" ? JSON.stringify(card) : null
+            payment_method === "card" ? JSON.stringify(card) : null,
+            req.body.coupon_code || null,
+            req.body.coupon_discount || 0
           );
 
         return res.json({

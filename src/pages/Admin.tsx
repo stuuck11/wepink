@@ -413,6 +413,28 @@ export default function Admin() {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-xs font-bold text-gray-400 uppercase">Cupom de Desconto</label>
+                <input 
+                  type="text" 
+                  value={localSettings.coupon_code || ""} 
+                  onChange={e => setLocalSettings({...localSettings, coupon_code: e.target.value.toUpperCase()})}
+                  className="w-full rounded-lg border p-4 text-sm"
+                  placeholder="Ex: BEMVINDO10"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-bold text-gray-400 uppercase">Porcentagem de Desconto (%)</label>
+                <input 
+                  type="number" 
+                  value={localSettings.coupon_discount || "0"} 
+                  onChange={e => setLocalSettings({...localSettings, coupon_discount: e.target.value})}
+                  className="w-full rounded-lg border p-4 text-sm"
+                  placeholder="Ex: 10"
+                />
+              </div>
+            </div>
             <button 
               onClick={handleSaveSettings}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FF0080] py-4 text-sm font-bold text-white uppercase tracking-widest"

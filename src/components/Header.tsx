@@ -69,7 +69,7 @@ export default function Header() {
             </button>
           </div>
 
-          <Link to="/" className="absolute left-1/2 -translate-x-1/2">
+          <Link to="/home" className="absolute left-1/2 -translate-x-1/2">
             {settings.logo_url && (
               <img 
                 src={settings.logo_url} 
