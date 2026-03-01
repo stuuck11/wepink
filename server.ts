@@ -665,7 +665,7 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Number(total),
+          amount: Math.round(Number(total) * 100),
           description: `Compra Wepink`,
           client: {
             name: customerData.name || 'Cliente Wepink',
@@ -673,6 +673,11 @@ async function startServer() {
             phone: (customerData.phone || '11999999999').replace(/\D/g, ''),
             document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, '')
           },
+          items: items.map((item: any) => ({
+            title: item.name,
+            unit_price: Math.round(item.price * 100),
+            quantity: item.quantity
+          })),
           metadata: {
             pixelId: pixelId,
             accessToken: accessToken,
@@ -712,7 +717,8 @@ async function startServer() {
         const data = await response.json();
         
         if (!response.ok) {
-          throw new Error(data.message || data.error || "Erro na SigiloPay");
+          const details = data.details ? ` | Detalhes: ${JSON.stringify(data.details)}` : "";
+          throw new Error(`${data.message || data.error || "Erro na SigiloPay"}${details}`);
         }
 
         // Save Order to SQLite
