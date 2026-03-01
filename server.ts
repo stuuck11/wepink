@@ -328,6 +328,30 @@ async function startServer() {
     }
   });
 
+  // SigiloPay Webhook Handler
+  app.post("/api/webhooks/sigilopay", (req, res) => {
+    const data = req.body;
+    console.log("SigiloPay Webhook received:", data);
+    
+    // SigiloPay sends status and identifier (our transactionId)
+    const status = data.status;
+    const identifier = data.identifier;
+
+    if (status === "paid" || status === "completed") {
+      try {
+        // Update order status in SQLite
+        db.prepare("UPDATE orders SET status = 'approved' WHERE id = ? OR pix_code = ?")
+          .run(identifier, data.pix_code || "");
+        
+        console.log(`Order ${identifier} marked as approved via webhook.`);
+      } catch (e) {
+        console.error("Error updating order via webhook:", e);
+      }
+    }
+    
+    res.json({ success: true });
+  });
+
   // SigiloPay Integration & Meta Ads Pixel CAPI
   app.post("/api/checkout", async (req, res) => {
     const { email, customerData, items, total, payment_method, card, originUrl } = req.body;
