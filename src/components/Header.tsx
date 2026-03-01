@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Menu, User, ShoppingCart, X, ChevronRight } from "lucide-react";
+import { Menu, User, ShoppingCart, X, ChevronRight, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
@@ -58,7 +58,7 @@ export default function Header() {
         )}
 
         {/* Main Header */}
-        <div className="flex h-16 items-center justify-between bg-[#F6F6F6]/80 px-4 backdrop-blur-sm sm:h-20 sm:px-8">
+        <div className="flex h-14 items-center justify-between bg-white px-4 sm:h-16 sm:px-8 border-b border-gray-100">
           <div className="flex items-center gap-1">
             <button 
               onClick={() => setIsMenuOpen(true)}
@@ -73,12 +73,17 @@ export default function Header() {
             <img 
               src={settings.logo_url} 
               alt="Logo" 
-              className="h-10 w-auto sm:h-12" 
+              className="h-6 w-auto sm:h-8" 
               referrerPolicy="no-referrer"
             />
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <button 
+              className="hidden p-2 text-gray-800 hover:opacity-70 sm:block"
+            >
+              <MapPin size={24} />
+            </button>
             <button 
               onClick={() => navigate("/perfil")}
               className="p-2 text-gray-800 hover:opacity-70"

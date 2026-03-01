@@ -21,7 +21,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [settings, setSettings] = useState<Settings>({
     top_bar_active: "1",
     top_bar_text: "Garanta agora o seu kit we favorito!",
-    logo_url: "https://i.imgur.com/XdOTlHH.png",
+    logo_url: "https://wepink.vtexassets.com/assets/vtex/assets-builder/wepink.store-theme/6.0.3/svg/logo-primary___ef05671065928b5b01f33e72323ba3b8.svg",
     whatsapp_active: "1",
     whatsapp_number: "5511999999999"
   });
