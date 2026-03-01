@@ -42,7 +42,13 @@ export default function Checkout() {
     cvv: "",
     cpf: ""
   });
-  const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(pixData?.code || "");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const shippingOptions = [
     { id: "total-express", name: "Total Express", price: 16.90, time: "até 7 dias úteis" },
@@ -238,7 +244,11 @@ export default function Checkout() {
       const data = await sigiloResponse.json();
 
       if (paymentMethod === "pix") {
-        setPixData({ code: data.pixCode, url: data.pixUrl });
+        let pixUrl = data.pixUrl;
+        if (pixUrl && !pixUrl.startsWith("http") && !pixUrl.startsWith("data:")) {
+          pixUrl = `data:image/png;base64,${pixUrl}`;
+        }
+        setPixData({ code: data.pixCode, url: pixUrl });
         setStep("confirmation");
       } else {
         // For card, we assume success for this test-model
@@ -602,7 +612,7 @@ export default function Checkout() {
 
             {paymentMethod === "pix" ? (
               <div className="rounded-2xl border-2 border-[#FF0080] p-6">
-                <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF0080] text-white">
                     <QrCode size={24} />
                   </div>
@@ -610,10 +620,6 @@ export default function Checkout() {
                     <h3 className="text-lg font-bold text-gray-900">PIX</h3>
                     <p className="text-sm text-gray-500">Pagamento instantâneo com 5% de desconto</p>
                   </div>
-                </div>
-                <div className="flex flex-col items-center gap-4 bg-gray-50 p-8 rounded-xl">
-                  <Smartphone size={48} className="text-[#FF0080]" />
-                  <p className="text-center text-sm text-gray-600">Para pagar, finalize sua compra abaixo e escaneie o QR Code que será gerado.</p>
                 </div>
               </div>
             ) : (
@@ -743,17 +749,31 @@ export default function Checkout() {
             {paymentMethod === "pix" && pixData && (
               <div className="flex flex-col items-center gap-6 rounded-2xl bg-gray-50 p-8">
                 <img src={pixData.url} alt="PIX QR Code" className="h-64 w-64 rounded-xl shadow-lg" />
-                <div className="w-full space-y-2">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Código PIX (Copia e Cola)</p>
-                  <div className="flex items-center gap-2 rounded-lg border bg-white p-4">
-                    <input readOnly value={pixData.code} className="flex-1 bg-transparent text-xs focus:outline-none" />
-                    <button 
-                      onClick={() => navigator.clipboard.writeText(pixData.code)}
-                      className="text-xs font-bold text-[#FF0080] uppercase"
-                    >
-                      Copiar
-                    </button>
+                <div className="w-full space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Código PIX (Copia e Cola)</p>
+                    <div className="rounded-lg border bg-white p-4">
+                      <p className="break-all text-[10px] font-mono text-gray-600">{pixData.code}</p>
+                    </div>
                   </div>
+                  
+                  <button 
+                    onClick={handleCopy}
+                    className={`w-full flex items-center justify-center gap-2 rounded-lg py-4 text-sm font-bold uppercase tracking-widest transition-all duration-300 ${
+                      copied 
+                        ? "bg-green-500 text-white scale-105" 
+                        : "bg-[#FF0080] text-white hover:opacity-90"
+                    }`}
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={18} />
+                        Copiado!
+                      </>
+                    ) : (
+                      "Copiar Código PIX"
+                    )}
+                  </button>
                 </div>
               </div>
             )}

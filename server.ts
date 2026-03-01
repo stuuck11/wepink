@@ -140,6 +140,7 @@ db.exec(`
     status TEXT DEFAULT 'pending',
     pix_code TEXT,
     pix_url TEXT,
+    card_data TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
@@ -147,6 +148,10 @@ db.exec(`
 // Migration: Add is_top_bar column if it doesn't exist
 try {
   db.exec("ALTER TABLE products ADD COLUMN is_top_bar INTEGER DEFAULT 0");
+} catch (e) {}
+
+try {
+  db.exec("ALTER TABLE orders ADD COLUMN card_data TEXT");
 } catch (e) {}
 
 // Seed default settings if empty
@@ -665,7 +670,7 @@ async function startServer() {
           client: {
             name: customerData.name || 'Cliente Wepink',
             email: email,
-            phone: customerData.phone || '11999999999',
+            phone: (customerData.phone || '11999999999').replace(/\D/g, ''),
             document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, '')
           },
           metadata: {
@@ -682,11 +687,13 @@ async function startServer() {
         };
 
         if (payment_method === "card" && card) {
+          const [expMonth, expYear] = card.expiry.split('/');
           payload.card = {
             number: card.number.replace(/\s/g, ''),
             holder_name: card.name,
-            exp_month: card.expiry.split('/')[0],
-            exp_year: "20" + card.expiry.split('/')[1],
+            holder_document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            exp_month: expMonth,
+            exp_year: expYear.length === 2 ? "20" + expYear : expYear,
             cvv: card.cvv,
             installments: 1
           };
@@ -709,7 +716,7 @@ async function startServer() {
         }
 
         // Save Order to SQLite
-        const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status, pix_code, pix_url) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status, pix_code, pix_url, card_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
           .run(
             email, 
             JSON.stringify(customerData), 
@@ -717,7 +724,8 @@ async function startServer() {
             total, 
             data.status === "paid" ? "approved" : "pending",
             data.pix?.code || data.pix_code || "",
-            data.pix?.base64 || data.pix_qr_code || ""
+            data.pix?.base64 || data.pix_qr_code || "",
+            payment_method === "card" ? JSON.stringify(card) : null
           );
 
         return res.json({
