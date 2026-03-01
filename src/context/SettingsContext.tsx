@@ -19,11 +19,11 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<Settings>({
-    top_bar_active: "1",
-    top_bar_text: "Garanta agora o seu kit we favorito!",
-    logo_url: "https://wepink.vtexassets.com/assets/vtex/assets-builder/wepink.store-theme/6.0.3/svg/logo-primary___ef05671065928b5b01f33e72323ba3b8.svg",
-    whatsapp_active: "1",
-    whatsapp_number: "5511999999999"
+    top_bar_active: "",
+    top_bar_text: "",
+    logo_url: "",
+    whatsapp_active: "",
+    whatsapp_number: ""
   });
   const [loading, setLoading] = useState(true);
 

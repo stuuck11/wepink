@@ -117,9 +117,6 @@ if (settingsCount.count === 0) {
   const hasLogo = db.prepare("SELECT value FROM settings WHERE key = 'logo_url'").get();
   if (!hasLogo) {
     db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)").run("logo_url", "https://wepink.vtexassets.com/assets/vtex/assets-builder/wepink.store-theme/6.0.3/svg/logo-primary___ef05671065928b5b01f33e72323ba3b8.svg");
-  } else {
-    // Force update to the new high quality logo
-    db.prepare("UPDATE settings SET value = ? WHERE key = 'logo_url'").run("https://wepink.vtexassets.com/assets/vtex/assets-builder/wepink.store-theme/6.0.3/svg/logo-primary___ef05671065928b5b01f33e72323ba3b8.svg");
   }
 }
 
