@@ -665,12 +665,12 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Number(total),
+          amount: Math.round(Number(total) * 100),
           description: `Compra Wepink`,
           clientIp: ip || '127.0.0.1',
           client: {
-            name: customerData.name || 'Cliente Wepink',
-            email: email,
+            name: (customerData.name || 'Cliente Wepink').trim(),
+            email: email.trim(),
             phone: (() => {
               const raw = (customerData.phone || '17981568291').replace(/\D/g, '');
               // Garante 11 dígitos (DDD + Número), removendo o 55 se o usuário tiver colocado
@@ -678,11 +678,11 @@ async function startServer() {
             })(),
             document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             address: {
-              street: customerData.street || 'Rua não informada',
-              number: customerData.number || 'SN',
-              complement: customerData.complement || '',
-              neighborhood: customerData.district || 'Bairro não informado',
-              city: customerData.city || 'Cidade não informada',
+              street: (customerData.street || 'Rua não informada').trim(),
+              number: (customerData.number || 'SN').trim(),
+              complement: (customerData.complement || '').trim(),
+              neighborhood: (customerData.district || 'Bairro não informado').trim(),
+              city: (customerData.city || 'Cidade não informada').trim(),
               state: (customerData.state || 'SP').substring(0, 2).toUpperCase(),
               zipCode: (() => {
                 const raw = (customerData.cep || customerData.zipCode || '01001000').replace(/\D/g, '');
@@ -694,7 +694,7 @@ async function startServer() {
           items: items.map((item: any, idx: number) => ({
             id: String(idx + 1),
             title: item.name,
-            unit_price: Number(item.price),
+            unit_price: Math.round(Number(item.price) * 100),
             quantity: item.quantity
           })),
           metadata: {
@@ -719,13 +719,13 @@ async function startServer() {
           payload.card = {
             number: (card.number || "").replace(/\s/g, ''),
             holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
+            name: (card.name || customerData.name || 'Cliente Wepink').trim(),
             holder_document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            exp_month: expMonth,
-            exp_year: expYear,
-            cvv: card.cvv || "000",
-            installments: 1,
-            brand: 'visa'
+            exp_month: parseInt(expMonth),
+            exp_year: parseInt(expYear),
+            cvv: String(card.cvv || "000"),
+            installments: 1
           };
         }
 
