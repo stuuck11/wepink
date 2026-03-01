@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 dotenv.config();
 
@@ -203,6 +203,18 @@ async function startServer() {
       });
       console.log("Products synced from Firebase.");
     }
+
+    // Sync Carousel if SQLite is empty
+    const carouselCount = db.prepare("SELECT COUNT(*) as count FROM carousel").get() as { count: number };
+    if (carouselCount.count === 0) {
+      const querySnapshot = await getDocs(collection(firestore, "carousel"));
+      const insertCarousel = db.prepare("INSERT INTO carousel (id, image_url, link_url, order_index) VALUES (?, ?, ?, ?)");
+      querySnapshot.forEach((doc) => {
+        const item = doc.data();
+        insertCarousel.run(doc.id, item.image_url, item.link_url, item.order_index);
+      });
+      console.log("Carousel synced from Firebase.");
+    }
   } catch (e) {
     console.error("Error during Firebase sync:", e);
   }
@@ -351,24 +363,47 @@ async function startServer() {
     res.json(items);
   });
 
-  app.post("/api/admin/carousel", authenticate, (req, res) => {
+  app.post("/api/admin/carousel", authenticate, async (req, res) => {
     const { image_url, link_url, order_index } = req.body;
     const info = db.prepare("INSERT INTO carousel (image_url, link_url, order_index) VALUES (?, ?, ?)")
       .run(image_url, link_url, order_index || 0);
-    res.json({ id: info.lastInsertRowid });
+    const id = info.lastInsertRowid.toString();
+    
+    // Sync to Firebase
+    try {
+      await setDoc(doc(firestore, "carousel", id), {
+        image_url, link_url, order_index: order_index || 0
+      });
+    } catch (e) { console.error("Firebase carousel error:", e); }
+
+    res.json({ id });
   });
 
-  app.put("/api/admin/carousel/:id", authenticate, (req, res) => {
+  app.put("/api/admin/carousel/:id", authenticate, async (req, res) => {
     const { id } = req.params;
     const { image_url, link_url, order_index } = req.body;
     db.prepare("UPDATE carousel SET image_url = ?, link_url = ?, order_index = ? WHERE id = ?")
       .run(image_url, link_url, order_index || 0, id);
+    
+    // Sync to Firebase
+    try {
+      await setDoc(doc(firestore, "carousel", id), {
+        image_url, link_url, order_index: order_index || 0
+      });
+    } catch (e) { console.error("Firebase carousel error:", e); }
+
     res.json({ success: true });
   });
 
-  app.delete("/api/admin/carousel/:id", authenticate, (req, res) => {
+  app.delete("/api/admin/carousel/:id", authenticate, async (req, res) => {
     const { id } = req.params;
     db.prepare("DELETE FROM carousel WHERE id = ?").run(id);
+    
+    // Sync to Firebase
+    try {
+      await deleteDoc(doc(firestore, "carousel", id));
+    } catch (e) { console.error("Firebase carousel error:", e); }
+
     res.json({ success: true });
   });
 
