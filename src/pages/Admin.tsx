@@ -7,7 +7,7 @@ import { doc, setDoc, collection, addDoc } from "firebase/firestore";
 
 export default function Admin() {
   const { settings, refreshSettings } = useSettings();
-  const [activeTab, setActiveTab] = useState<"products" | "settings" | "carousel">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "settings" | "carousel" | "categories">("products");
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [carouselItems, setCarouselItems] = useState<any[]>([]);
@@ -56,6 +56,7 @@ export default function Admin() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newProduct)
     });
+    
     if (res.ok) {
       // Sync to Firebase
       try {
@@ -74,6 +75,9 @@ export default function Admin() {
         is_queridinho: false, is_destaque: false, is_mais_vendido: false, is_top_bar: false
       });
       setEditingId(null);
+    } else {
+      const data = await res.json();
+      alert(data.error || "Erro ao salvar produto.");
     }
   };
 
@@ -161,6 +165,18 @@ export default function Admin() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleUpdateCategoryBanner = async (id: number, banner_url: string) => {
+    const res = await fetch(`/api/admin/categories/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ banner_url })
+    });
+    if (res.ok) {
+      fetchCategories();
+      alert("Banner da categoria atualizado!");
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8">
       <div className="mb-12 flex items-center justify-between">
@@ -173,6 +189,7 @@ export default function Admin() {
       <div className="flex gap-4 border-b mb-8 overflow-x-auto no-scrollbar">
         {[
           { id: "products", label: "Produtos", icon: Package },
+          { id: "categories", label: "Categorias", icon: ImageIcon },
           { id: "settings", label: "Configurações", icon: SettingsIcon },
           { id: "carousel", label: "Banner Principal", icon: ImageIcon }
         ].map(tab => (
@@ -488,6 +505,36 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+      {activeTab === "categories" && (
+        <div className="space-y-8">
+          <h2 className="text-xl font-black uppercase tracking-widest">Banners das Categorias</h2>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {categories.map(cat => (
+              <div key={cat.id} className="rounded-2xl border p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-gray-900 uppercase tracking-widest">{cat.name}</h3>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">{cat.slug}</span>
+                </div>
+                {cat.banner_url && (
+                  <img src={cat.banner_url} alt={cat.name} className="h-24 w-full rounded-lg object-cover" />
+                )}
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">URL do Banner</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      defaultValue={cat.banner_url || ""} 
+                      onBlur={(e) => handleUpdateCategoryBanner(cat.id, e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 rounded-lg border p-2 text-xs focus:border-[#FF0080] focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

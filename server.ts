@@ -412,6 +412,13 @@ async function startServer() {
     res.json(items);
   });
 
+  app.put("/api/admin/categories/:id", authenticate, (req, res) => {
+    const { id } = req.params;
+    const { banner_url } = req.body;
+    db.prepare("UPDATE categories SET banner_url = ? WHERE id = ?").run(banner_url, id);
+    res.json({ success: true });
+  });
+
   app.get("/api/products", (req, res) => {
     const { category, type, limit, offset } = req.query;
     let query = "SELECT p.*, c.name as category_name FROM products p JOIN categories c ON p.category_id = c.id";
@@ -472,12 +479,12 @@ async function startServer() {
       const metadata = payload.trackProps || payload.metadata || {};
       const client = payload.client || {};
       
-      const status = (transaction.status || payload.status || '').toString().toLowerCase();
+      const status = (transaction.status || payload.status || '').toString().toUpperCase();
       const id = transaction.id || payload.id;
       const amount = transaction.amount || payload.amount;
       const identifier = transaction.identifier || payload.identifier;
 
-      if (status === 'paid' || status === 'completed' || payload.event === 'TRANSACTION_PAID') {
+      if (status === 'PAID' || status === 'COMPLETED' || status === 'OK' || payload.event === 'TRANSACTION_PAID') {
         const pixelId = metadata.pixelId;
         const accessToken = metadata.accessToken;
 
@@ -503,13 +510,17 @@ async function startServer() {
             event_source_url: metadata.originUrl || '',
             user_data: { 
               em: metadata.email ? [hash(metadata.email)] : (client.email ? [hash(client.email)] : undefined),
+              ph: client.phone ? [hash(client.phone)] : undefined,
               client_ip_address: cleanIp,
               client_user_agent: metadata.userAgent,
-              external_id: [hash(metadata.transactionId)],
+              external_id: [hash(metadata.internalId || metadata.campaignId)],
+              fbp: metadata.fbp,
+              fbc: metadata.fbc
             },
             custom_data: { 
               currency: 'BRL', 
               value: Number(amount), 
+              content_name: metadata.campaignTitle || 'Compra Wepink',
               content_type: 'product'
             }
           };
@@ -517,7 +528,10 @@ async function startServer() {
           fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: [event] })
+            body: JSON.stringify({ 
+              data: [event],
+              ...(process.env.FB_TEST_CODE ? { test_event_code: process.env.FB_TEST_CODE } : {})
+            })
           }).catch(() => {});
         }
       }
@@ -544,6 +558,11 @@ async function startServer() {
     const pixelId = settings.fb_pixel_id;
     const accessToken = settings.fb_access_token;
 
+    // Captura tracking cookies para CAPI
+    const cookies = req.headers.cookie || '';
+    const fbp = cookies.split('; ').find((row: string) => row.startsWith('_fbp='))?.split('=')[1];
+    const fbc = cookies.split('; ').find((row: string) => row.startsWith('_fbc='))?.split('=')[1];
+
     // CAPI: InitiateCheckout & AddPaymentInfo
     if (pixelId && accessToken) {
       const hashedEmail = email ? hash(email) : undefined;
@@ -558,6 +577,7 @@ async function startServer() {
             client_ip_address: ip,
             client_user_agent: userAgent, 
             em: hashedEmail ? [hashedEmail] : undefined,
+            fbp, fbc
           },
           custom_data: { currency: 'BRL', value: Number(total) }
         },
@@ -571,6 +591,7 @@ async function startServer() {
             client_ip_address: ip,
             client_user_agent: userAgent, 
             em: hashedEmail ? [hashedEmail] : undefined,
+            fbp, fbc
           },
           custom_data: { currency: 'BRL', value: Number(total) }
         }
@@ -578,14 +599,17 @@ async function startServer() {
       fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: events })
+        body: JSON.stringify({ 
+          data: events,
+          ...(process.env.FB_TEST_CODE ? { test_event_code: process.env.FB_TEST_CODE } : {})
+        })
       }).catch(() => {});
     }
 
     const publicKey = process.env.SIGILOPAY_PUBLIC_KEY?.trim();
     const secretKey = process.env.SIGILOPAY_SECRET_KEY?.trim();
     const appUrl = (process.env.APP_URL || '').trim().replace(/\/$/, '');
-    const transactionId = `don_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const transactionId = `ord_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     if (publicKey && secretKey) {
       try {
@@ -598,29 +622,30 @@ async function startServer() {
           amount: Number(total),
           description: `Compra Wepink`,
           client: {
-            name: customerData.name || 'Cliente',
-            email: email || 'cliente@exemplo.com',
-            phone: '11999999999',
-            document: customerData.cpf?.replace(/\D/g, '') || '12345678909'
+            name: customerData.name || 'Cliente Wepink',
+            email: email,
+            phone: customerData.phone || '11999999999',
+            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, '')
           },
           metadata: {
-            transactionId: transactionId,
             pixelId: pixelId,
             accessToken: accessToken,
             originUrl: originUrl,
             email: email,
             userAgent: userAgent,
-            ip: ip
+            ip: ip,
+            fbp: fbp,
+            fbc: fbc
           },
           callbackurl: `${appUrl}/api/webhooks/sigilopay`
         };
 
         if (payment_method === "card" && card) {
           payload.card = {
-            number: card.number.replace(/\s/g, ""),
+            number: card.number.replace(/\s/g, ''),
             holder_name: card.name,
-            exp_month: card.expiry.split("/")[0],
-            exp_year: "20" + card.expiry.split("/")[1],
+            exp_month: card.expiry.split('/')[0],
+            exp_year: "20" + card.expiry.split('/')[1],
             cvv: card.cvv,
             installments: 1
           };
@@ -637,50 +662,49 @@ async function startServer() {
         });
 
         const data = await response.json();
-
-        if (response.ok) {
-          if (payment_method === "pix") {
-            const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, pix_code, pix_url, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
-              .run(email, JSON.stringify(customerData), JSON.stringify(items), total, data.pix?.code || data.pix_code, data.pix?.base64 || data.pix_qr_code, "pending");
-
-            return res.json({ 
-              orderId: info.lastInsertRowid,
-              pixCode: data.pix?.code || data.pix_code,
-              pixUrl: data.pix?.base64 || data.pix_qr_code,
-              status: "pending"
-            });
-          } else {
-            const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status) VALUES (?, ?, ?, ?, ?)")
-              .run(email, JSON.stringify(customerData), JSON.stringify(items), total, data.status === "paid" ? "approved" : "pending");
-
-            return res.json({ 
-              orderId: info.lastInsertRowid,
-              status: data.status === "paid" ? "approved" : "pending",
-              transactionId: data.transactionId || data.id
-            });
-          }
-        } else {
-          console.error("SigiloPay API Error:", data);
-          return res.status(400).json({ error: data.message || "Erro no processamento do pagamento." });
+        
+        if (!response.ok) {
+          throw new Error(data.message || data.error || "Erro na SigiloPay");
         }
-      } catch (e) {
-        console.error("SigiloPay Integration Error:", e);
-        return res.status(500).json({ error: "Erro interno ao processar pagamento." });
+
+        // Save Order to SQLite
+        const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status, pix_code, pix_url) VALUES (?, ?, ?, ?, ?, ?, ?)")
+          .run(
+            email, 
+            JSON.stringify(customerData), 
+            JSON.stringify(items), 
+            total, 
+            data.status === "paid" ? "approved" : "pending",
+            data.pix?.code || data.pix_code || "",
+            data.pix?.base64 || data.pix_qr_code || ""
+          );
+
+        return res.json({
+          success: true,
+          orderId: info.lastInsertRowid,
+          transactionId: data.transactionId || data.id,
+          pixCode: data.pix?.code || data.pix_code,
+          pixUrl: data.pix?.base64 || data.pix_qr_code,
+          status: data.status === "paid" ? "approved" : "pending"
+        });
+
+      } catch (err: any) {
+        console.error("SigiloPay Error:", err);
+        return res.status(500).json({ error: err.message });
       }
     }
 
-    // Mock fallback if keys are missing
-    if (payment_method === "pix") {
-      const pixCode = "00020126360014BR.GOV.BCB.PIX0114+5511999999999520400005303986540510.005802BR5913Wepink Store6009SAO PAULO62070503***6304E2B4";
-      const pixUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(pixCode);
-      const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, pix_code, pix_url, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .run(email, JSON.stringify(customerData), JSON.stringify(items), total, pixCode, pixUrl, "pending");
-      return res.json({ orderId: info.lastInsertRowid, pixCode, pixUrl, status: "pending" });
-    } else {
-      const info = db.prepare("INSERT INTO orders (email, customer_data, items, total, status) VALUES (?, ?, ?, ?, ?)")
-        .run(email, JSON.stringify(customerData), JSON.stringify(items), total, "approved");
-      return res.json({ orderId: info.lastInsertRowid, status: "approved" });
-    }
+    // Fallback if no keys (Mock for testing)
+    const mockOrderId = db.prepare("INSERT INTO orders (email, customer_data, items, total, status) VALUES (?, ?, ?, ?, ?)")
+      .run(email, JSON.stringify(customerData), JSON.stringify(items), total, "pending").lastInsertRowid;
+
+    return res.json({
+      success: true,
+      orderId: mockOrderId,
+      pixCode: "00020126360014BR.GOV.BCB.PIX0114+5511999999999520400005303986540510.005802BR5913Wepink Store6009SAO PAULO62070503***6304E2B4",
+      pixUrl: "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=MOCK_PIX",
+      status: "pending"
+    });
   });
 
   // Admin Product Management
@@ -691,6 +715,12 @@ async function startServer() {
       category_id, is_queridinho, is_destaque, is_mais_vendido, is_top_bar 
     } = req.body;
     
+    // Check for duplicate name
+    const existing = db.prepare("SELECT id FROM products WHERE name = ?").get(name);
+    if (existing) {
+      return res.status(400).json({ error: "Já existe um produto com este nome idêntico." });
+    }
+
     // If setting as top bar, unset others
     if (is_top_bar) {
       db.prepare("UPDATE products SET is_top_bar = 0").run();

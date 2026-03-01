@@ -205,12 +205,28 @@ export default function Checkout() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...sigiloPayPayload,
           email: user?.email || formData.email,
-          originUrl: window.location.href,
-          customerData: user || formData,
+          customerData: {
+            name: user?.name || formData.name,
+            phone: "11999999999", // Default as per API requirement
+            cpf: cardData.cpf || "12345678909",
+            ...formData
+          },
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
           total: finalTotal,
-          sigiloPay: true 
+          payment_method: paymentMethod,
+          card: paymentMethod === "card" ? {
+            number: cardData.number,
+            name: cardData.name,
+            expiry: cardData.expiry,
+            cvv: cardData.cvv
+          } : undefined,
+          originUrl: window.location.href
         })
       });
 
