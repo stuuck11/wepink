@@ -50,7 +50,14 @@ export default function Carousel() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.8 }}
-          className="h-full w-full object-cover"
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          onDragEnd={(_, info) => {
+            if (info.offset.x > 50) prev();
+            else if (info.offset.x < -50) next();
+          }}
+          className="h-full w-full object-cover cursor-grab active:cursor-grabbing"
+          referrerPolicy="no-referrer"
         />
       </AnimatePresence>
 

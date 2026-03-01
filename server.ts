@@ -186,6 +186,10 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.get("/api/admin/check", authenticate, (req, res) => {
+    res.json({ success: true });
+  });
+
   // --- User Authentication ---
   app.post("/api/user/register", async (req, res) => {
     const { email, password, name, address } = req.body;

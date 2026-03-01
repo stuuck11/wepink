@@ -21,6 +21,16 @@ export default function Admin() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    fetch("/api/admin/check")
+      .then(res => {
+        if (!res.ok) {
+          navigate("/admin-login");
+        }
+      })
+      .catch(() => navigate("/admin-login"));
+  }, [navigate]);
+
+  useEffect(() => {
     fetchProducts();
     fetchCategories();
     setLocalSettings(settings);
