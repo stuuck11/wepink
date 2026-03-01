@@ -665,7 +665,7 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Math.round(Number(total) * 100),
+          amount: Number(total).toFixed(2),
           description: `Compra Wepink`,
           client: {
             name: customerData.name || 'Cliente Wepink',
@@ -675,7 +675,7 @@ async function startServer() {
           },
           items: items.map((item: any) => ({
             title: item.name,
-            unit_price: Math.round(item.price * 100),
+            unit_price: Number(item.price).toFixed(2),
             quantity: item.quantity
           })),
           metadata: {
@@ -704,6 +704,8 @@ async function startServer() {
           };
         }
 
+        console.log(`[SigiloPay] Enviando payload para ${endpoint}:`, JSON.stringify(payload, null, 2));
+
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 
@@ -715,6 +717,7 @@ async function startServer() {
         });
 
         const data = await response.json();
+        console.log(`[SigiloPay] Resposta da API:`, JSON.stringify(data, null, 2));
         
         if (!response.ok) {
           const details = data.details ? ` | Detalhes: ${JSON.stringify(data.details)}` : "";
