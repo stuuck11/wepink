@@ -665,13 +665,16 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Number(total),
+          amount: Math.round(Number(total) * 100),
           description: `Compra Wepink`,
           clientIp: ip || '127.0.0.1',
           client: {
             name: customerData.name || 'Cliente Wepink',
             email: email,
-            phone: (customerData.phone || '11999999999').replace(/\D/g, ''),
+            phone: (() => {
+              const raw = (customerData.phone || '11999999999').replace(/\D/g, '');
+              return raw.length <= 11 ? `55${raw}` : raw;
+            })(),
             document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             address: {
               street: customerData.street || 'Rua não informada',
@@ -680,13 +683,16 @@ async function startServer() {
               neighborhood: customerData.district || 'Bairro não informado',
               city: customerData.city || 'Cidade não informada',
               state: (customerData.state || 'SP').substring(0, 2).toUpperCase(),
-              zipCode: (customerData.cep || customerData.zipCode || '01001000').replace(/\D/g, ''),
+              zipCode: (() => {
+                const raw = (customerData.cep || customerData.zipCode || '01001000').replace(/\D/g, '');
+                return raw.length === 8 ? `${raw.substring(0, 5)}-${raw.substring(5)}` : raw;
+              })(),
               country: 'BR'
             }
           },
           items: items.map((item: any) => ({
             title: item.name,
-            unit_price: Number(item.price),
+            unit_price: Math.round(Number(item.price) * 100),
             quantity: item.quantity
           })),
           metadata: {
@@ -712,8 +718,9 @@ async function startServer() {
             number: (card.number || "").replace(/\s/g, ''),
             holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
             holder_document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            exp_month: expMonth,
-            exp_year: expYear,
+            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            exp_month: Number(expMonth),
+            exp_year: Number(expYear),
             cvv: card.cvv || "000",
             installments: 1
           };
