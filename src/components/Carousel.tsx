@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router-dom";
 
 interface CarouselItem {
   id: number;
@@ -10,6 +11,7 @@ interface CarouselItem {
 export default function Carousel() {
   const [items, setItems] = useState<CarouselItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch("/api/carousel")
@@ -19,8 +21,8 @@ export default function Carousel() {
         else {
           // Default placeholder
           setItems([
-            { id: 1, image_url: "https://picsum.photos/seed/wepink1/1920/1080", link_url: "#" },
-            { id: 2, image_url: "https://picsum.photos/seed/wepink2/1920/1080", link_url: "#" }
+            { id: 1, image_url: "https://picsum.photos/seed/wepink1/1920/1080", link_url: "/categoria/kits" },
+            { id: 2, image_url: "https://picsum.photos/seed/wepink2/1920/1080", link_url: "/categoria/perfumaria" }
           ]);
         }
       });
@@ -36,6 +38,12 @@ export default function Carousel() {
 
   const next = () => setCurrentIndex(prev => (prev + 1) % items.length);
   const prev = () => setCurrentIndex(prev => (prev - 1 + items.length) % items.length);
+
+  const handleBannerClick = (link: string) => {
+    if (link && link !== "#") {
+      navigate(link);
+    }
+  };
 
   if (items.length === 0) return null;
 
@@ -55,7 +63,11 @@ export default function Carousel() {
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
         {items.map((item) => (
-          <div key={item.id} className="h-full w-full flex-shrink-0">
+          <div 
+            key={item.id} 
+            className="h-full w-full flex-shrink-0"
+            onClick={() => handleBannerClick(item.link_url)}
+          >
             <img
               src={item.image_url}
               alt="Banner"

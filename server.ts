@@ -279,6 +279,27 @@ async function startServer() {
     res.json(items);
   });
 
+  app.post("/api/admin/carousel", authenticate, (req, res) => {
+    const { image_url, link_url, order_index } = req.body;
+    const info = db.prepare("INSERT INTO carousel (image_url, link_url, order_index) VALUES (?, ?, ?)")
+      .run(image_url, link_url, order_index || 0);
+    res.json({ id: info.lastInsertRowid });
+  });
+
+  app.put("/api/admin/carousel/:id", authenticate, (req, res) => {
+    const { id } = req.params;
+    const { image_url, link_url, order_index } = req.body;
+    db.prepare("UPDATE carousel SET image_url = ?, link_url = ?, order_index = ? WHERE id = ?")
+      .run(image_url, link_url, order_index || 0, id);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/admin/carousel/:id", authenticate, (req, res) => {
+    const { id } = req.params;
+    db.prepare("DELETE FROM carousel WHERE id = ?").run(id);
+    res.json({ success: true });
+  });
+
   app.get("/api/categories", (req, res) => {
     const items = db.prepare("SELECT * FROM categories").all();
     res.json(items);

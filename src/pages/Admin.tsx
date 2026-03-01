@@ -10,13 +10,18 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<"products" | "settings" | "carousel">("products");
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [carouselItems, setCarouselItems] = useState<any[]>([]);
   const [newProduct, setNewProduct] = useState({
     name: "", description: "", price: 0, old_price: 0, 
     image_url: "", image_url_2: "", image_url_3: "", image_url_4: "", image_url_5: "",
     category_id: 1,
     is_queridinho: false, is_destaque: false, is_mais_vendido: false, is_top_bar: false
   });
+  const [newCarouselItem, setNewCarouselItem] = useState({
+    image_url: "", link_url: "", order_index: 0
+  });
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingCarouselId, setEditingCarouselId] = useState<number | null>(null);
   const [localSettings, setLocalSettings] = useState(settings);
   const navigate = useNavigate();
 
@@ -33,11 +38,13 @@ export default function Admin() {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
+    fetchCarousel();
     setLocalSettings(settings);
   }, [settings]);
 
   const fetchProducts = () => fetch("/api/products").then(res => res.json()).then(setProducts);
   const fetchCategories = () => fetch("/api/categories").then(res => res.json()).then(setCategories);
+  const fetchCarousel = () => fetch("/api/carousel").then(res => res.json()).then(setCarouselItems);
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +125,40 @@ export default function Admin() {
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     navigate("/login");
+  };
+
+  const handleAddCarouselItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const method = editingCarouselId ? "PUT" : "POST";
+    const url = editingCarouselId ? `/api/admin/carousel/${editingCarouselId}` : "/api/admin/carousel";
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newCarouselItem)
+    });
+    if (res.ok) {
+      fetchCarousel();
+      setNewCarouselItem({ image_url: "", link_url: "", order_index: 0 });
+      setEditingCarouselId(null);
+    }
+  };
+
+  const handleDeleteCarouselItem = async (id: number) => {
+    if (confirm("Tem certeza?")) {
+      await fetch(`/api/admin/carousel/${id}`, { method: "DELETE" });
+      fetchCarousel();
+    }
+  };
+
+  const handleEditCarouselClick = (item: any) => {
+    setEditingCarouselId(item.id);
+    setNewCarouselItem({
+      image_url: item.image_url,
+      link_url: item.link_url,
+      order_index: item.order_index
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -366,8 +407,88 @@ export default function Admin() {
       )}
 
       {activeTab === "carousel" && (
-        <div className="text-center py-20 text-gray-400">
-          Funcionalidade de gerenciamento de banner em desenvolvimento...
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <div className="rounded-2xl border p-6 shadow-sm">
+              <h2 className="mb-6 text-lg font-black uppercase tracking-widest">
+                {editingCarouselId ? "Editar Banner" : "Novo Banner"}
+              </h2>
+              <form onSubmit={handleAddCarouselItem} className="space-y-4">
+                <input 
+                  type="text" placeholder="URL da Imagem" 
+                  value={newCarouselItem.image_url} onChange={e => setNewCarouselItem({...newCarouselItem, image_url: e.target.value})}
+                  className="w-full rounded-lg border p-3 text-sm" required 
+                />
+                <select 
+                  value={newCarouselItem.link_url} onChange={e => setNewCarouselItem({...newCarouselItem, link_url: e.target.value})}
+                  className="w-full rounded-lg border p-3 text-sm" required
+                >
+                  <option value="">Selecionar Categoria</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={`/categoria/${cat.slug}`}>{cat.name}</option>
+                  ))}
+                </select>
+                <input 
+                  type="number" placeholder="Ordem" 
+                  value={newCarouselItem.order_index} onChange={e => setNewCarouselItem({...newCarouselItem, order_index: parseInt(e.target.value)})}
+                  className="w-full rounded-lg border p-3 text-sm" required 
+                />
+                <div className="flex flex-col gap-2">
+                  <button className="w-full rounded-lg bg-[#FF0080] py-4 text-sm font-bold text-white uppercase tracking-widest">
+                    {editingCarouselId ? "Salvar Alterações" : "Adicionar Banner"}
+                  </button>
+                  {editingCarouselId && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setEditingCarouselId(null);
+                        setNewCarouselItem({ image_url: "", link_url: "", order_index: 0 });
+                      }}
+                      className="w-full rounded-lg border border-gray-200 py-4 text-sm font-bold text-gray-400 uppercase tracking-widest hover:bg-gray-50"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="rounded-2xl border overflow-hidden shadow-sm">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-xs font-bold uppercase text-gray-400">
+                  <tr>
+                    <th className="px-6 py-4">Banner</th>
+                    <th className="px-6 py-4">Link</th>
+                    <th className="px-6 py-4">Ordem</th>
+                    <th className="px-6 py-4 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {carouselItems.map(item => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <img src={item.image_url} className="h-10 w-20 rounded object-cover" />
+                      </td>
+                      <td className="px-6 py-4 text-gray-500">{item.link_url}</td>
+                      <td className="px-6 py-4 font-bold">{item.order_index}</td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => handleEditCarouselClick(item)} className="text-gray-400 hover:text-gray-600">
+                            <Edit size={18} />
+                          </button>
+                          <button onClick={() => handleDeleteCarouselItem(item.id)} className="text-red-500 hover:text-red-700">
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>
