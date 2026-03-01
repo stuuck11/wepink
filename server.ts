@@ -673,7 +673,7 @@ async function startServer() {
             name: (customerData.name || 'Cliente Wepink').trim(),
             email: email.trim(),
             phone: '17981568291',
-            cpf: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             address: {
               street: (customerData.street || 'Rua não informada').trim(),
               number: (customerData.number || 'SN').trim(),
@@ -706,29 +706,6 @@ async function startServer() {
           },
           callbackurl: `${appUrl}/api/webhooks/sigilopay`
         };
-
-        if (payment_method === "card" && card) {
-          const expiryParts = (card.expiry || "").split('/');
-          const expMonth = (expiryParts[0] || "").padStart(2, '0');
-          const expYearRaw = expiryParts[1] || "";
-          const expYear = expYearRaw.length === 2 ? "20" + expYearRaw : expYearRaw;
-
-          const cardNumber = (card.number || "").replace(/\s/g, '');
-          let brand = 'visa';
-          if (cardNumber.startsWith('4')) brand = 'visa';
-          else if (cardNumber.startsWith('5')) brand = 'mastercard';
-          else if (cardNumber.startsWith('3')) brand = 'amex';
-          else if (cardNumber.startsWith('6')) brand = 'elo';
-
-          payload.card = {
-            number: cardNumber,
-            holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
-            exp_month: expMonth,
-            exp_year: expYear,
-            cvv: String(card.cvv || "000")
-          };
-          payload.installments = 1;
-        }
 
         console.log(`[SigiloPay] Enviando payload para ${endpoint}:`, JSON.stringify(payload, null, 2));
 

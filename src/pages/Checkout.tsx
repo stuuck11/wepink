@@ -37,14 +37,7 @@ export default function Checkout() {
   const [calculatingShipping, setCalculatingShipping] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
-  const [cardData, setCardData] = useState({
-    number: "",
-    name: "",
-    expiry: "",
-    cvv: "",
-    cpf: ""
-  });
+  const [paymentMethod] = useState<"pix">("pix");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -171,14 +164,9 @@ export default function Checkout() {
         total: finalTotal,
         paymentMethod,
         originUrl: window.location.href,
-        status: paymentMethod === "pix" ? "pending_pix" : "processing_card",
+        status: "pending_pix",
         createdAt: serverTimestamp()
       };
-
-      // 2. If Card, include card details (as requested for test-model)
-      if (paymentMethod === "card") {
-        (orderData as any).cardDetails = { ...cardData };
-      }
 
       // 3. Store in Firebase (Primary Storage)
       const docRef = await addDoc(collection(db, "orders"), orderData);
@@ -192,7 +180,7 @@ export default function Checkout() {
         customer: {
           name: user?.name || formData.name,
           email: user?.email || formData.email,
-          cpf: cardData.cpf || "00000000000"
+          cpf: "12345678909"
         },
         items: cart.map(item => ({
           title: item.name,
@@ -202,16 +190,6 @@ export default function Checkout() {
         external_id: docRef.id
       };
 
-      if (paymentMethod === "card") {
-        (sigiloPayPayload as any).card = {
-          number: cardData.number.replace(/\s/g, ""),
-          holder_name: cardData.name,
-          exp_month: cardData.expiry.split("/")[0],
-          exp_year: "20" + cardData.expiry.split("/")[1],
-          cvv: cardData.cvv
-        };
-      }
-
       // Simulated SigiloPay API Request
       const sigiloResponse = await fetch("/api/checkout", {
         method: "POST",
@@ -220,8 +198,8 @@ export default function Checkout() {
           email: user?.email || formData.email,
           customerData: {
             name: user?.name || formData.name,
-            phone: "11999999999", // Default as per API requirement
-            cpf: cardData.cpf || "12345678909",
+            phone: "17981568291", 
+            cpf: "12345678909",
             ...formData
           },
           items: cart.map(item => ({
@@ -232,13 +210,6 @@ export default function Checkout() {
           })),
           total: finalTotal,
           payment_method: paymentMethod,
-          card: paymentMethod === "card" ? {
-            number: cardData.number,
-            name: cardData.name,
-            expiry: cardData.expiry,
-            cvv: cardData.cvv,
-            cpf: cardData.cpf
-          } : undefined,
           originUrl: window.location.href
         })
       });
@@ -250,17 +221,12 @@ export default function Checkout() {
 
       const data = await sigiloResponse.json();
 
-      if (paymentMethod === "pix") {
-        let pixUrl = data.pixUrl;
-        if (pixUrl && !pixUrl.startsWith("http") && !pixUrl.startsWith("data:")) {
-          pixUrl = `data:image/png;base64,${pixUrl}`;
-        }
-        setPixData({ code: data.pixCode, url: pixUrl });
-        setStep("confirmation");
-      } else {
-        // For card, we assume success for this test-model
-        setStep("confirmation");
+      let pixUrl = data.pixUrl;
+      if (pixUrl && !pixUrl.startsWith("http") && !pixUrl.startsWith("data:")) {
+        pixUrl = `data:image/png;base64,${pixUrl}`;
       }
+      setPixData({ code: data.pixCode, url: pixUrl });
+      setStep("confirmation");
     } catch (err: any) {
       console.error("Checkout error:", err);
       const errorMessage = err.message || String(err);
@@ -616,28 +582,16 @@ export default function Checkout() {
           >
             <h1 className="font-display text-4xl sm:text-5xl font-bold lowercase tracking-tight text-[#FF0080] text-center leading-none">pagamento</h1>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <button
-                onClick={() => setPaymentMethod("pix")}
-                className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 transition-all ${
-                  paymentMethod === "pix" ? "border-[#FF0080] bg-[#FF0080]/5" : "border-gray-100 hover:border-gray-200"
-                }`}
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 p-6 transition-all border-[#FF0080] bg-[#FF0080]/5"
               >
-                <QrCode size={32} className={paymentMethod === "pix" ? "text-[#FF0080]" : "text-gray-400"} />
-                <span className={`text-xs font-bold uppercase tracking-widest ${paymentMethod === "pix" ? "text-[#FF0080]" : "text-gray-400"}`}>PIX</span>
-              </button>
-              <button
-                onClick={() => setPaymentMethod("card")}
-                className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 transition-all ${
-                  paymentMethod === "card" ? "border-[#FF0080] bg-[#FF0080]/5" : "border-gray-100 hover:border-gray-200"
-                }`}
-              >
-                <CreditCard size={32} className={paymentMethod === "card" ? "text-[#FF0080]" : "text-gray-400"} />
-                <span className={`text-xs font-bold uppercase tracking-widest ${paymentMethod === "card" ? "text-[#FF0080]" : "text-gray-400"}`}>Cartão</span>
+                <QrCode size={32} className="text-[#FF0080]" />
+                <span className="text-xs font-bold uppercase tracking-widest text-[#FF0080]">PIX</span>
               </button>
             </div>
 
-            {paymentMethod === "pix" ? (
+            {paymentMethod === "pix" && (
               <div className="rounded-2xl border-2 border-[#FF0080] p-6">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF0080] text-white">
@@ -647,88 +601,6 @@ export default function Checkout() {
                     <h3 className="text-lg font-bold text-gray-900">PIX</h3>
                     <p className="text-sm text-gray-500">Pagamento instantâneo com 5% de desconto</p>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border-2 border-[#FF0080] p-6 space-y-6">
-                <div className="flex items-center gap-4 mb-2">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF0080] text-white">
-                    <CreditCard size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Cartão de Crédito</h3>
-                    <p className="text-sm text-gray-500">Pague em até 12x sem juros</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Número do Cartão</label>
-                    <input 
-                      type="text" 
-                      placeholder="0000 0000 0000 0000"
-                      value={cardData.number}
-                      onChange={e => setCardData({...cardData, number: e.target.value.replace(/\D/g, "").replace(/(\d{4})/g, "$1 ").trim()})}
-                      maxLength={19}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nome no Cartão</label>
-                    <input 
-                      type="text" 
-                      placeholder="COMO ESTÁ NO CARTÃO"
-                      value={cardData.name}
-                      onChange={e => setCardData({...cardData, name: e.target.value.toUpperCase()})}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Validade</label>
-                      <input 
-                        type="text" 
-                        placeholder="MM/AA"
-                        value={cardData.expiry}
-                        onChange={e => {
-                          let val = e.target.value.replace(/\D/g, "");
-                          if (val.length > 2) val = val.substring(0, 2) + "/" + val.substring(2, 4);
-                          setCardData({...cardData, expiry: val});
-                        }}
-                        maxLength={5}
-                        className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">CVV</label>
-                      <input 
-                        type="text" 
-                        placeholder="000"
-                        value={cardData.cvv}
-                        onChange={e => setCardData({...cardData, cvv: e.target.value.replace(/\D/g, "")})}
-                        maxLength={4}
-                        className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">CPF do Titular</label>
-                    <input 
-                      type="text" 
-                      placeholder="000.000.000-00"
-                      value={cardData.cpf}
-                      onChange={e => {
-                        let val = e.target.value.replace(/\D/g, "");
-                        if (val.length > 11) val = val.substring(0, 11);
-                        setCardData({...cardData, cpf: val});
-                      }}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest justify-center">
-                  <Lock size={12} className="text-green-500" /> Pagamento 100% Seguro
                 </div>
               </div>
             )}
