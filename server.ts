@@ -694,17 +694,8 @@ async function startServer() {
       }
     }
 
-    // Fallback if no keys (Mock for testing)
-    const mockOrderId = db.prepare("INSERT INTO orders (email, customer_data, items, total, status) VALUES (?, ?, ?, ?, ?)")
-      .run(email, JSON.stringify(customerData), JSON.stringify(items), total, "pending").lastInsertRowid;
-
-    return res.json({
-      success: true,
-      orderId: mockOrderId,
-      pixCode: "00020126360014BR.GOV.BCB.PIX0114+5511999999999520400005303986540510.005802BR5913Wepink Store6009SAO PAULO62070503***6304E2B4",
-      pixUrl: "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=MOCK_PIX",
-      status: "pending"
-    });
+    // If keys are missing, return error
+    return res.status(400).json({ error: "Configuração de pagamento (SigiloPay) ausente no servidor." });
   });
 
   // Admin Product Management
