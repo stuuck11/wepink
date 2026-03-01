@@ -30,7 +30,9 @@ const getCategoryIcon = (name: string) => {
 export default function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
   const { settings } = useSettings();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,15 +41,28 @@ export default function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
       .then(setCategories);
   }, []);
 
-  const filteredCategories = categories.filter(cat => 
-    cat.name.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    if (search.trim()) {
+      setSearching(true);
+      const timer = setTimeout(() => {
+        fetch(`/api/products?search=${search}&limit=10`)
+          .then(res => res.json())
+          .then(data => {
+            setProducts(data);
+            setSearching(false);
+          })
+          .catch(() => setSearching(false));
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setProducts([]);
+      setSearching(false);
+    }
+  }, [search]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (search.trim()) {
-      // For now, just close and maybe we could navigate to a search page
-      // navigate(`/produtos?search=${search}`);
       onClose();
     }
   };
@@ -116,30 +131,58 @@ export default function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
             </form>
           </div>
 
-          {/* Categories */}
+          {/* Categories / Search Results */}
           <div className="flex-1 overflow-y-auto px-4 pb-8">
             <div className="mb-4 flex items-center justify-between border-b pb-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">categorias</span>
-              <Link to="/produtos" onClick={onClose} className="text-xs text-gray-500 underline">Ver todos os produtos</Link>
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                {search.trim() ? "produtos encontrados" : "categorias"}
+              </span>
+              {!search.trim() && (
+                <Link to="/produtos" onClick={onClose} className="text-xs text-gray-500 underline">Ver todos os produtos</Link>
+              )}
             </div>
             <div className="divide-y divide-gray-100">
-              {filteredCategories.map((cat) => {
-                const Icon = getCategoryIcon(cat.name);
-                return (
-                  <Link 
-                    key={cat.id} 
-                    to={`/categoria/${cat.slug}`}
-                    onClick={onClose}
-                    className="flex items-center justify-between py-4 text-gray-800 hover:text-[#FF0080]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon size={20} className="text-[#FF0080]" />
-                      <span className="text-sm font-medium">{cat.name}</span>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-300" />
-                  </Link>
-                );
-              })}
+              {search.trim() ? (
+                searching ? (
+                  <div className="py-8 text-center text-xs text-gray-400 animate-pulse">Buscando produtos...</div>
+                ) : products.length > 0 ? (
+                  products.map(product => (
+                    <Link 
+                      key={product.id} 
+                      to={`/produto/${product.id}`}
+                      onClick={onClose}
+                      className="flex items-center gap-3 py-4 text-gray-800 hover:text-[#FF0080]"
+                    >
+                      <img src={product.image_url} className="h-12 w-12 rounded-lg object-cover border border-gray-100" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold line-clamp-1">{product.name}</span>
+                        <span className="text-xs text-[#FF0080] font-black">R$ {product.price.toFixed(2).replace(".", ",")}</span>
+                      </div>
+                      <ChevronRight size={16} className="ml-auto text-gray-300" />
+                    </Link>
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-xs text-gray-400">Nenhum produto encontrado.</div>
+                )
+              ) : (
+                categories.map((cat) => {
+                  const Icon = getCategoryIcon(cat.name);
+                  return (
+                    <Link 
+                      key={cat.id} 
+                      to={`/categoria/${cat.slug}`}
+                      onClick={onClose}
+                      className="flex items-center justify-between py-4 text-gray-800 hover:text-[#FF0080]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon size={20} className="text-[#FF0080]" />
+                        <span className="text-sm font-medium">{cat.name}</span>
+                      </div>
+                      <ChevronRight size={18} className="text-gray-300" />
+                    </Link>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

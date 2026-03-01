@@ -465,19 +465,30 @@ async function startServer() {
   });
 
   app.get("/api/products", (req, res) => {
-    const { category, type, limit, offset } = req.query;
+    const { category, type, limit, offset, search } = req.query;
     let query = "SELECT p.*, c.name as category_name FROM products p JOIN categories c ON p.category_id = c.id";
     const params: any[] = [];
+    const whereClauses: string[] = [];
 
     if (category) {
-      query += " WHERE c.slug = ?";
+      whereClauses.push("c.slug = ?");
       params.push(category);
-    } else if (type === "queridinho") {
-      query += " WHERE p.is_queridinho = 1";
+    }
+    if (type === "queridinho") {
+      whereClauses.push("p.is_queridinho = 1");
     } else if (type === "destaque") {
-      query += " WHERE p.is_destaque = 1";
+      whereClauses.push("p.is_destaque = 1");
     } else if (type === "mais_vendido") {
-      query += " WHERE p.is_mais_vendido = 1";
+      whereClauses.push("p.is_mais_vendido = 1");
+    }
+
+    if (search) {
+      whereClauses.push("p.name LIKE ?");
+      params.push(`%${search}%`);
+    }
+
+    if (whereClauses.length > 0) {
+      query += " WHERE " + whereClauses.join(" AND ");
     }
 
     if (limit) {
