@@ -19,12 +19,15 @@ export default function Checkout() {
   const { cart, total, subtotal, discounts } = useCart();
   const [step, setStep] = useState<Step>("cart");
   const [user, setUser] = useState<UserData | null>(null);
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     name: "",
-    address: ""
+    cep: "",
+    street: "",
+    number: "",
+    complement: ""
   });
   const [pixData, setPixData] = useState<{ code: string; url: string } | null>(null);
   const [shippingOption, setShippingOption] = useState<{ id: string; name: string; price: number; time: string } | null>(null);
@@ -87,8 +90,20 @@ export default function Checkout() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         if (isRegistering) {
-          setIsRegistering(false);
-          setError("Cadastro realizado! Faça login.");
+          // Auto-login after registration
+          const loginRes = await fetch("/api/user/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: formData.email, password: formData.password })
+          });
+          const loginData = await loginRes.json();
+          if (loginRes.ok) {
+            setUser(loginData.user);
+            calculateShipping();
+          } else {
+            setIsRegistering(false);
+            setError("Cadastro realizado! Faça login.");
+          }
         } else {
           setUser(data.user);
           calculateShipping();
@@ -100,6 +115,27 @@ export default function Checkout() {
       setError("Erro de conexão.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCepChange = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, "");
+    setFormData(prev => ({ ...prev, cep: cleanCep }));
+    
+    if (cleanCep.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setFormData(prev => ({
+            ...prev,
+            street: data.logradouro,
+            complement: prev.complement || data.complemento
+          }));
+        }
+      } catch (err) {
+        console.error("Erro ao buscar CEP:", err);
+      }
     }
   };
 
@@ -387,39 +423,102 @@ export default function Checkout() {
                           required
                         />
                       </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">E-mail</label>
+                          <input 
+                            type="email" 
+                            value={formData.email}
+                            onChange={e => setFormData({...formData, email: e.target.value})}
+                            className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Senha</label>
+                          <input 
+                            type="password" 
+                            value={formData.password}
+                            onChange={e => setFormData({...formData, password: e.target.value})}
+                            className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-6 mt-6">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Endereço de Entrega</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="col-span-2 sm:col-span-1">
+                            <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">CEP</label>
+                            <input 
+                              type="text" 
+                              value={formData.cep}
+                              onChange={e => handleCepChange(e.target.value)}
+                              placeholder="00000-000"
+                              maxLength={9}
+                              className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                              required
+                            />
+                          </div>
+                          <div className="col-span-2 sm:col-span-1">
+                            <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Número</label>
+                            <input 
+                              type="text" 
+                              value={formData.number}
+                              onChange={e => setFormData({...formData, number: e.target.value})}
+                              className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                              required
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nome da Rua</label>
+                            <input 
+                              type="text" 
+                              value={formData.street}
+                              onChange={e => setFormData({...formData, street: e.target.value})}
+                              className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                              required
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ponto de Referência (Opcional)</label>
+                            <input 
+                              type="text" 
+                              value={formData.complement}
+                              onChange={e => setFormData({...formData, complement: e.target.value})}
+                              className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {!isRegistering && (
+                    <>
                       <div>
-                        <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Endereço Completo</label>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">E-mail</label>
                         <input 
-                          type="text" 
-                          value={formData.address}
-                          onChange={e => setFormData({...formData, address: e.target.value})}
+                          type="email" 
+                          value={formData.email}
+                          onChange={e => setFormData({...formData, email: e.target.value})}
+                          className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Senha</label>
+                        <input 
+                          type="password" 
+                          value={formData.password}
+                          onChange={e => setFormData({...formData, password: e.target.value})}
                           className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
                           required
                         />
                       </div>
                     </>
                   )}
-
-                  <div>
-                    <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">E-mail</label>
-                    <input 
-                      type="email" 
-                      value={formData.email}
-                      onChange={e => setFormData({...formData, email: e.target.value})}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Senha</label>
-                    <input 
-                      type="password" 
-                      value={formData.password}
-                      onChange={e => setFormData({...formData, password: e.target.value})}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
-                      required
-                    />
-                  </div>
 
                   <button 
                     disabled={loading}
@@ -579,7 +678,9 @@ export default function Checkout() {
                 <span className="text-gray-500">Total do Pedido</span>
                 <span className="font-bold">R$ {finalTotal.toFixed(2).replace(".", ",")}</span>
               </div>
-              <p className="text-[10px] text-gray-400 text-center uppercase tracking-widest pt-4">Entrega para: {user?.address || formData.address}</p>
+              <p className="text-[10px] text-gray-400 text-center uppercase tracking-widest pt-4">
+                Entrega para: {user?.address || `${formData.street}, ${formData.number} - CEP: ${formData.cep}`}
+              </p>
             </div>
 
             <button 

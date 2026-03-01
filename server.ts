@@ -28,6 +28,10 @@ db.exec(`
     email TEXT UNIQUE,
     password TEXT,
     name TEXT,
+    cep TEXT,
+    street TEXT,
+    number TEXT,
+    complement TEXT,
     address TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -195,11 +199,12 @@ async function startServer() {
 
   // --- User Authentication ---
   app.post("/api/user/register", async (req, res) => {
-    const { email, password, name, address } = req.body;
+    const { email, password, name, cep, street, number, complement } = req.body;
+    const fullAddress = `${street}, ${number}${complement ? ' - ' + complement : ''} - CEP: ${cep}`;
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const stmt = db.prepare("INSERT INTO users (email, password, name, address) VALUES (?, ?, ?, ?)");
-      stmt.run(email, hashedPassword, name, address);
+      const stmt = db.prepare("INSERT INTO users (email, password, name, cep, street, number, complement, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+      stmt.run(email, hashedPassword, name, cep, street, number, complement, fullAddress);
       res.json({ success: true });
     } catch (err: any) {
       if (err.message.includes("UNIQUE constraint failed")) {
@@ -224,7 +229,19 @@ async function startServer() {
           maxAge: 7 * 24 * 60 * 60 * 1000
         });
         console.log("User login success");
-        res.json({ success: true, user: { id: user.id, email: user.email, name: user.name, address: user.address } });
+        res.json({ 
+          success: true, 
+          user: { 
+            id: user.id, 
+            email: user.email, 
+            name: user.name, 
+            cep: user.cep,
+            street: user.street,
+            number: user.number,
+            complement: user.complement,
+            address: user.address 
+          } 
+        });
       } else {
         console.log("User login failed: Invalid credentials");
         res.status(401).json({ error: "Credenciais inválidas." });
@@ -240,7 +257,7 @@ async function startServer() {
     if (!token) return res.status(401).json({ error: "Não autenticado." });
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
-      const user = db.prepare("SELECT id, email, name, address FROM users WHERE id = ?").get(decoded.id) as any;
+      const user = db.prepare("SELECT id, email, name, cep, street, number, complement, address FROM users WHERE id = ?").get(decoded.id) as any;
       if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
       res.json(user);
     } catch (err) {
