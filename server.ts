@@ -246,7 +246,7 @@ async function startServer() {
     const carouselCount = db.prepare("SELECT COUNT(*) as count FROM carousel").get() as { count: number };
     if (carouselCount.count === 0) {
       const querySnapshot = await getDocs(collection(firestore, "carousel"));
-      const insertCarousel = db.prepare("INSERT INTO carousel (id, image_url, link_url, order_index) VALUES (?, ?, ?, ?)");
+      const insertCarousel = db.prepare("INSERT OR REPLACE INTO carousel (id, image_url, link_url, order_index) VALUES (?, ?, ?, ?)");
       querySnapshot.forEach((doc) => {
         const item = doc.data();
         insertCarousel.run(doc.id, item.image_url, item.link_url, item.order_index);
@@ -665,7 +665,7 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Number(total).toFixed(2),
+          amount: Number(Number(total).toFixed(2)),
           description: `Compra Wepink`,
           client: {
             name: customerData.name || 'Cliente Wepink',
@@ -675,7 +675,7 @@ async function startServer() {
           },
           items: items.map((item: any) => ({
             title: item.name,
-            unit_price: Number(item.price).toFixed(2),
+            unit_price: Number(Number(item.price).toFixed(2)),
             quantity: item.quantity
           })),
           metadata: {
