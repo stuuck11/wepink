@@ -40,8 +40,8 @@ function logError(err: any) {
   } else {
     message = String(err);
   }
-  const logEntry = `[${timestamp}] ERROR: ${message}\n`;
-  console.error("LOGGING ERROR:", logEntry);
+  const logEntry = `LOGGING ERROR: [${timestamp}] ERROR: ${message}\n`;
+  console.error(logEntry);
   try {
     const logPath = path.join(process.cwd(), "stderr.log");
     fs.appendFileSync(logPath, logEntry);
