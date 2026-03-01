@@ -45,14 +45,14 @@ export default function Carousel() {
         className="flex h-full w-full cursor-grab active:cursor-grabbing"
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.2}
+        dragElastic={0.7}
         onDragEnd={(_, info) => {
-          const swipeThreshold = 50;
+          const swipeThreshold = 100;
           if (info.offset.x > swipeThreshold) prev();
           else if (info.offset.x < -swipeThreshold) next();
         }}
         animate={{ x: `-${currentIndex * 100}%` }}
-        transition={{ duration: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
         {items.map((item) => (
           <div key={item.id} className="h-full w-full flex-shrink-0">
