@@ -680,7 +680,7 @@ async function startServer() {
               neighborhood: customerData.district || 'Bairro não informado',
               city: customerData.city || 'Cidade não informada',
               state: (customerData.state || 'SP').substring(0, 2).toUpperCase(),
-              zipCode: (customerData.cep || customerData.zipCode || '00000000').replace(/\D/g, ''),
+              zipCode: (customerData.cep || customerData.zipCode || '01001000').replace(/\D/g, ''),
               country: 'BR'
             }
           },
@@ -710,11 +710,11 @@ async function startServer() {
 
           payload.card = {
             number: (card.number || "").replace(/\s/g, ''),
-            holder_name: card.name || customerData.name || 'Cliente',
+            holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
             holder_document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             exp_month: expMonth,
             exp_year: expYear,
-            cvv: card.cvv || "",
+            cvv: card.cvv || "000",
             installments: 1
           };
         }
