@@ -665,7 +665,7 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Math.round(Number(total) * 100),
+          amount: Number(total),
           description: `Compra Wepink`,
           clientIp: ip || '127.0.0.1',
           client: {
@@ -694,7 +694,7 @@ async function startServer() {
           items: items.map((item: any, idx: number) => ({
             id: String(idx + 1),
             title: item.name,
-            unit_price: Math.round(Number(item.price) * 100),
+            unit_price: Number(item.price),
             quantity: item.quantity
           })),
           metadata: {
@@ -710,7 +710,24 @@ async function startServer() {
           callbackurl: `${appUrl}/api/webhooks/sigilopay`
         };
 
-        // Removed card payment logic as requested
+        if (payment_method === "card" && card) {
+          const expiryParts = (card.expiry || "").split('/');
+          const expMonth = (expiryParts[0] || "").padStart(2, '0');
+          const expYearRaw = expiryParts[1] || "";
+          const expYear = expYearRaw.length === 2 ? "20" + expYearRaw : expYearRaw;
+
+          payload.card = {
+            number: (card.number || "").replace(/\s/g, ''),
+            holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
+            name: (card.name || customerData.name || 'Cliente Wepink').trim(),
+            holder_document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            exp_month: parseInt(expMonth),
+            exp_year: parseInt(expYear),
+            cvv: String(card.cvv || "000"),
+            installments: 1
+          };
+        }
 
         console.log(`[SigiloPay] Enviando payload para ${endpoint}:`, JSON.stringify(payload, null, 2));
 

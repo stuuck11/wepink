@@ -615,17 +615,122 @@ export default function Checkout() {
           >
             <h1 className="font-display text-4xl sm:text-5xl font-bold lowercase tracking-tight text-[#FF0080] text-center leading-none">pagamento</h1>
             
-            <div className="rounded-2xl border-2 border-[#FF0080] p-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF0080] text-white">
-                  <QrCode size={24} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">PIX</h3>
-                  <p className="text-sm text-gray-500">Pagamento instantâneo com 5% de desconto</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setPaymentMethod("pix")}
+                className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 transition-all ${
+                  paymentMethod === "pix" ? "border-[#FF0080] bg-[#FF0080]/5" : "border-gray-100 hover:border-gray-200"
+                }`}
+              >
+                <QrCode size={32} className={paymentMethod === "pix" ? "text-[#FF0080]" : "text-gray-400"} />
+                <span className={`text-xs font-bold uppercase tracking-widest ${paymentMethod === "pix" ? "text-[#FF0080]" : "text-gray-400"}`}>PIX</span>
+              </button>
+              <button
+                onClick={() => setPaymentMethod("card")}
+                className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 transition-all ${
+                  paymentMethod === "card" ? "border-[#FF0080] bg-[#FF0080]/5" : "border-gray-100 hover:border-gray-200"
+                }`}
+              >
+                <CreditCard size={32} className={paymentMethod === "card" ? "text-[#FF0080]" : "text-gray-400"} />
+                <span className={`text-xs font-bold uppercase tracking-widest ${paymentMethod === "card" ? "text-[#FF0080]" : "text-gray-400"}`}>Cartão</span>
+              </button>
+            </div>
+
+            {paymentMethod === "pix" ? (
+              <div className="rounded-2xl border-2 border-[#FF0080] p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF0080] text-white">
+                    <QrCode size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">PIX</h3>
+                    <p className="text-sm text-gray-500">Pagamento instantâneo com 5% de desconto</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-2xl border-2 border-[#FF0080] p-6 space-y-6">
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF0080] text-white">
+                    <CreditCard size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Cartão de Crédito</h3>
+                    <p className="text-sm text-gray-500">Pague em até 12x sem juros</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Número do Cartão</label>
+                    <input 
+                      type="text" 
+                      placeholder="0000 0000 0000 0000"
+                      value={cardData.number}
+                      onChange={e => setCardData({...cardData, number: e.target.value.replace(/\D/g, "").replace(/(\d{4})/g, "$1 ").trim()})}
+                      maxLength={19}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nome no Cartão</label>
+                    <input 
+                      type="text" 
+                      placeholder="COMO ESTÁ NO CARTÃO"
+                      value={cardData.name}
+                      onChange={e => setCardData({...cardData, name: e.target.value.toUpperCase()})}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Validade</label>
+                      <input 
+                        type="text" 
+                        placeholder="MM/AA"
+                        value={cardData.expiry}
+                        onChange={e => {
+                          let val = e.target.value.replace(/\D/g, "");
+                          if (val.length > 2) val = val.substring(0, 2) + "/" + val.substring(2, 4);
+                          setCardData({...cardData, expiry: val});
+                        }}
+                        maxLength={5}
+                        className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">CVV</label>
+                      <input 
+                        type="text" 
+                        placeholder="000"
+                        value={cardData.cvv}
+                        onChange={e => setCardData({...cardData, cvv: e.target.value.replace(/\D/g, "")})}
+                        maxLength={4}
+                        className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-wider">CPF do Titular</label>
+                    <input 
+                      type="text" 
+                      placeholder="000.000.000-00"
+                      value={cardData.cpf}
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, "");
+                        if (val.length > 11) val = val.substring(0, 11);
+                        setCardData({...cardData, cpf: val});
+                      }}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm focus:border-[#FF0080] focus:outline-none" 
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest justify-center">
+                  <Lock size={12} className="text-green-500" /> Pagamento 100% Seguro
+                </div>
+              </div>
+            )}
 
             <div className="rounded-2xl bg-gray-50 p-6 space-y-2">
               {error && <p className="text-xs font-bold text-red-500 text-center mb-4">{error}</p>}
@@ -643,7 +748,7 @@ export default function Checkout() {
               disabled={loading}
               className="w-full rounded-lg bg-[#FF0080] py-4 text-sm font-bold text-white uppercase tracking-widest hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? "Processando..." : "Gerar código PIX"}
+              {loading ? "Processando..." : (paymentMethod === "pix" ? "Gerar código PIX" : "Realizar pagamento")}
             </button>
           </motion.div>
         )}
