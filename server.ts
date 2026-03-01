@@ -668,16 +668,12 @@ async function startServer() {
           amount: parseFloat(Number(total).toFixed(2)),
           description: `Compra Wepink`,
           clientIp: ip || '127.0.0.1',
+          payment_method: payment_method === "pix" ? "pix" : "credit_card",
           client: {
             name: (customerData.name || 'Cliente Wepink').trim(),
             email: email.trim(),
-            phone: (() => {
-              const raw = (customerData.phone || '17981568291').replace(/\D/g, '');
-              // Garante 11 dígitos (DDD + Número), e adiciona o prefixo 55
-              const clean = raw.length > 11 && raw.startsWith('55') ? raw.substring(2) : raw;
-              return `55${clean}`;
-            })(),
-            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            phone: '17981568291',
+            cpf: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             address: {
               street: (customerData.street || 'Rua não informada').trim(),
               number: (customerData.number || 'SN').trim(),
@@ -727,30 +723,11 @@ async function startServer() {
           payload.card = {
             number: cardNumber,
             holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
-            name: (card.name || customerData.name || 'Cliente Wepink').trim(),
-            holder_document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            holder_document_type: 'CPF',
-            document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            document_type: 'CPF',
-            exp_month: parseInt(expMonth),
-            exp_year: parseInt(expYear),
-            cvv: String(card.cvv || "000"),
-            brand: brand,
-            installments: 1,
-            billing_address: {
-              street: (customerData.street || 'Rua não informada').trim(),
-              number: (customerData.number || 'SN').trim(),
-              complement: (customerData.complement || '').trim(),
-              neighborhood: (customerData.district || 'Bairro não informado').trim(),
-              city: (customerData.city || 'Cidade não informada').trim(),
-              state: (customerData.state || 'SP').substring(0, 2).toUpperCase(),
-              zipCode: (() => {
-                const raw = (customerData.cep || customerData.zipCode || '01001000').replace(/\D/g, '');
-                return raw.length === 8 ? `${raw.substring(0, 5)}-${raw.substring(5)}` : raw;
-              })(),
-              country: 'BR'
-            }
+            exp_month: expMonth,
+            exp_year: expYear,
+            cvv: String(card.cvv || "000")
           };
+          payload.installments = 1;
         }
 
         console.log(`[SigiloPay] Enviando payload para ${endpoint}:`, JSON.stringify(payload, null, 2));
