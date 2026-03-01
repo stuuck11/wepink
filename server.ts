@@ -635,8 +635,8 @@ async function startServer() {
       }).catch(() => {});
     }
 
-    const publicKey = process.env.SIGILOPAY_PUBLIC_KEY?.trim();
-    const secretKey = process.env.SIGILOPAY_SECRET_KEY?.trim();
+    const publicKey = process.env.SIGILOPAY_PUBLIC_KEY?.trim().replace(/^"|"$/g, '');
+    const secretKey = process.env.SIGILOPAY_SECRET_KEY?.trim().replace(/^"|"$/g, '');
     const appUrl = (process.env.APP_URL || '').trim().replace(/\/$/, '');
     const transactionId = `ord_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
@@ -725,7 +725,7 @@ async function startServer() {
     }
 
     // If keys are missing, return error
-    const missingKeysMsg = "Configuração de pagamento (SigiloPay) ausente no servidor.";
+    const missingKeysMsg = `Configuração de pagamento (SigiloPay) ausente no servidor. Detalhes: PUBLIC_KEY=${publicKey ? 'PRESENTE (' + publicKey.substring(0, 5) + '...)' : 'AUSENTE'}, SECRET_KEY=${secretKey ? 'PRESENTE (' + secretKey.substring(0, 5) + '...)' : 'AUSENTE'}, APP_URL=${appUrl || 'AUSENTE'}. Verifique o arquivo .env no servidor.`;
     logError(missingKeysMsg);
     return res.status(400).json({ error: missingKeysMsg });
   });
