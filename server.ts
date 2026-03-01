@@ -677,10 +677,11 @@ async function startServer() {
               street: customerData.street || 'Rua não informada',
               number: customerData.number || 'SN',
               complement: customerData.complement || '',
-              district: customerData.district || 'Bairro não informado',
+              neighborhood: customerData.district || 'Bairro não informado',
               city: customerData.city || 'Cidade não informada',
               state: (customerData.state || 'SP').substring(0, 2).toUpperCase(),
-              zip_code: (customerData.cep || customerData.zipCode || '00000000').replace(/\D/g, '')
+              zipCode: (customerData.cep || customerData.zipCode || '00000000').replace(/\D/g, ''),
+              country: 'BR'
             }
           },
           items: items.map((item: any) => ({
@@ -703,7 +704,7 @@ async function startServer() {
 
         if (payment_method === "card" && card) {
           const expiryParts = (card.expiry || "").split('/');
-          const expMonth = expiryParts[0] || "";
+          const expMonth = (expiryParts[0] || "").padStart(2, '0');
           const expYearRaw = expiryParts[1] || "";
           const expYear = expYearRaw.length === 2 ? "20" + expYearRaw : expYearRaw;
 
