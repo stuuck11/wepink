@@ -21,7 +21,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [settings, setSettings] = useState<Settings>({
     top_bar_active: "1",
     top_bar_text: "Garanta agora o seu kit we favorito!",
-    logo_url: "https://imgur.com/rcC8nAo.png",
+    logo_url: "https://i.imgur.com/XdOTlHH.png",
     whatsapp_active: "1",
     whatsapp_number: "5511999999999"
   });

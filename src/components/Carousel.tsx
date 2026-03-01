@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "motion/react";
 
 interface CarouselItem {
   id: number;
@@ -41,38 +40,31 @@ export default function Carousel() {
   if (items.length === 0) return null;
 
   return (
-    <div className="relative h-[60vh] w-full overflow-hidden sm:h-[80vh]">
-      <AnimatePresence mode="wait">
-        <motion.img
-          key={currentIndex}
-          src={items[currentIndex].image_url}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.8 }}
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.2}
-          onDragEnd={(_, info) => {
-            const swipeThreshold = 50;
-            if (info.offset.x > swipeThreshold) prev();
-            else if (info.offset.x < -swipeThreshold) next();
-          }}
-          className="h-full w-full object-cover cursor-grab active:cursor-grabbing touch-none"
-          draggable="false"
-          referrerPolicy="no-referrer"
-        />
-      </AnimatePresence>
-
-      {/* Controls */}
-      <div className="absolute inset-0 flex items-center justify-between px-4">
-        <button onClick={prev} className="rounded-full bg-white/20 p-2 text-white backdrop-blur-sm hover:bg-white/40">
-          <ChevronLeft size={24} />
-        </button>
-        <button onClick={next} className="rounded-full bg-white/20 p-2 text-white backdrop-blur-sm hover:bg-white/40">
-          <ChevronRight size={24} />
-        </button>
-      </div>
+    <div className="relative h-[60vh] w-full overflow-hidden sm:h-[80vh] touch-pan-y">
+      <motion.div
+        className="flex h-full w-full cursor-grab active:cursor-grabbing"
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.2}
+        onDragEnd={(_, info) => {
+          const swipeThreshold = 50;
+          if (info.offset.x > swipeThreshold) prev();
+          else if (info.offset.x < -swipeThreshold) next();
+        }}
+        animate={{ x: `-${currentIndex * 100}%` }}
+        transition={{ duration: 0 }}
+      >
+        {items.map((item) => (
+          <div key={item.id} className="h-full w-full flex-shrink-0">
+            <img
+              src={item.image_url}
+              alt="Banner"
+              className="h-full w-full object-cover pointer-events-none"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        ))}
+      </motion.div>
 
       {/* Dots */}
       <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2">

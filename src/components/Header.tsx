@@ -73,7 +73,7 @@ export default function Header() {
             <img 
               src={settings.logo_url} 
               alt="Logo" 
-              className="h-8 w-auto sm:h-10" 
+              className="h-10 w-auto sm:h-12" 
               referrerPolicy="no-referrer"
             />
           </Link>
