@@ -8,6 +8,7 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import fs from "fs";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
@@ -28,6 +29,13 @@ const firestore = getFirestore(firebaseApp);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+function logError(err: any) {
+  const timestamp = new Date().toISOString();
+  const message = err instanceof Error ? err.stack : JSON.stringify(err);
+  const logEntry = `[${timestamp}] ERROR: ${message}\n`;
+  fs.appendFileSync(path.join(__dirname, "stderr.log"), logEntry);
+}
 
 function hash(val: string | undefined): string | undefined {
   if (!val) return undefined;
@@ -274,6 +282,7 @@ async function startServer() {
       stmt.run(email, hashedPassword, name, cep, street, number, complement, fullAddress);
       res.json({ success: true });
     } catch (err: any) {
+      logError(err);
       if (err.message.includes("UNIQUE constraint failed")) {
         res.status(400).json({ error: "Email já cadastrado." });
       } else {
@@ -315,6 +324,7 @@ async function startServer() {
       }
     } catch (err) {
       console.error("Login error:", err);
+      logError(err);
       res.status(500).json({ error: "Erro interno no servidor." });
     }
   });
@@ -539,6 +549,7 @@ async function startServer() {
       return res.status(200).json({ received: true });
     } catch (err: any) {
       console.error("SigiloPay Webhook Error:", err);
+      logError(err);
       return res.status(200).json({ received: true, error: err.message });
     }
   });
@@ -690,6 +701,7 @@ async function startServer() {
 
       } catch (err: any) {
         console.error("SigiloPay Error:", err);
+        logError(err);
         return res.status(500).json({ error: err.message });
       }
     }

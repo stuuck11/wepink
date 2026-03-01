@@ -704,7 +704,7 @@ export default function Checkout() {
               disabled={loading}
               className="w-full rounded-lg bg-[#FF0080] py-4 text-sm font-bold text-white uppercase tracking-widest hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? "Processando..." : "FINALIZAR COMPRA"}
+              {loading ? "Processando..." : (paymentMethod === "pix" ? "Gerar código PIX" : "Realizar pagamento")}
             </button>
           </motion.div>
         )}
