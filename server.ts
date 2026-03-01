@@ -667,21 +667,11 @@ async function startServer() {
           identifier: transactionId,
           amount: Math.round(Number(total) * 100),
           description: `Compra Wepink`,
-          clientIp: ip,
           client: {
             name: customerData.name || 'Cliente Wepink',
             email: email,
             phone: (customerData.phone || '11999999999').replace(/\D/g, ''),
-            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            address: {
-              zip_code: (customerData.cep || '00000000').replace(/\D/g, ''),
-              street: customerData.street || 'Rua não informada',
-              street_number: customerData.number || 'SN',
-              complement: customerData.complement || '',
-              district: 'Bairro',
-              city: 'Cidade',
-              state: 'SP'
-            }
+            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, '')
           },
           items: items.map((item: any) => ({
             title: item.name,
@@ -707,8 +697,8 @@ async function startServer() {
             number: card.number.replace(/\s/g, ''),
             holder_name: card.name,
             holder_document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            exp_month: String(parseInt(expMonth)),
-            exp_year: String(parseInt(expYear.length === 2 ? "20" + expYear : expYear)),
+            exp_month: expMonth,
+            exp_year: expYear.length === 2 ? "20" + expYear : expYear,
             cvv: card.cvv,
             installments: 1
           };
