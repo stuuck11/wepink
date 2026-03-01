@@ -672,8 +672,9 @@ async function startServer() {
             name: customerData.name || 'Cliente Wepink',
             email: email,
             phone: (() => {
-              const raw = (customerData.phone || '11999999999').replace(/\D/g, '');
-              return raw.length <= 11 ? `55${raw}` : raw;
+              const raw = (customerData.phone || '17981568291').replace(/\D/g, '');
+              // Garante 11 dígitos (DDD + Número), removendo o 55 se o usuário tiver colocado
+              return raw.length > 11 && raw.startsWith('55') ? raw.substring(2) : raw;
             })(),
             document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             address: {
@@ -717,10 +718,8 @@ async function startServer() {
           payload.card = {
             number: (card.number || "").replace(/\s/g, ''),
             holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
-            holder_document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
-            exp_month: Number(expMonth),
-            exp_year: Number(expYear),
+            exp_month: expMonth,
+            exp_year: expYear,
             cvv: card.cvv || "000",
             installments: 1
           };
