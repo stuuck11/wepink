@@ -236,7 +236,8 @@ export default function Checkout() {
             number: cardData.number,
             name: cardData.name,
             expiry: cardData.expiry,
-            cvv: cardData.cvv
+            cvv: cardData.cvv,
+            cpf: cardData.cpf
           } : undefined,
           originUrl: window.location.href
         })
